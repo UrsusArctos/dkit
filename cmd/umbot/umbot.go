@@ -1,17 +1,15 @@
 package main
 
 import (
+	"UrsusArctos/dkit/pkg/umintgbot"
 	"fmt"
-	"io/ioutil"
-	"runtime"
+	"os"
 	"time"
-
-	mbot "github.com/UrsusArctos/dkit/umintgbot"
 )
 
-var tgb mbot.TGMinBotCore
+var tgb umintgbot.TGMinBotCore
 
-func ActualHandler(msginfo mbot.TMessageInfo) {
+func ActualHandler(msginfo umintgbot.TMessageInfo) {
 	// Show received message
 	fmt.Printf("%s [%d]: %s \n", msginfo.From.Username, msginfo.From.ID, msginfo.Text)
 	// Send quoted reply
@@ -19,8 +17,8 @@ func ActualHandler(msginfo mbot.TMessageInfo) {
 	if err != nil {
 		fmt.Printf("%+v\n%+v\n", sentmsg, err)
 	}
+	// This is how to send and MP3 file
 	/*
-		// Send mp3 file
 		afile := mbot.AttachedFileData{LocalFile: "sample.mp3",
 			Caption: "Downloaded using @" + tgb.BotInfo.Result.Username, Performer: "Demo", Title: "Sample Sound",
 		}
@@ -37,32 +35,19 @@ func DebugSayHandler(message string) {
 
 func main() {
 	// Read Bot API token from file
-	token, _ := ioutil.ReadFile("token.txt")
+	token, _ := os.ReadFile("token.txt")
 	// Initialize bot
-	tgb = mbot.NewInstance(string(token))
+	tgb = umintgbot.NewInstance(string(token))
 	fmt.Println("Started as @" + tgb.BotInfo.Result.Username)
 	// Set message handler
 	tgb.MSGHandler = ActualHandler
-	// Set Buoy
-	/*
-		Buoy := buoy.TBuoyParams{
-			MinimumSuccessTime:  3600,
-			RestartDelay:        300,
-			GeneralFailureCount: 10,
-			DebugCallback:       DebugSayHandler}
-	*/
 	// Run message loop
 	for {
 		tgb.WatchForMessagesAsync()
 		fmt.Print("[!]")
-		for !tgb.LoadMessagesAsync() {
-			runtime.Gosched()
+		for tgb.LoadMessagesAsync() {
+			// probably replace this sleep with runtime.Gosched() in high-load applications
 			time.Sleep(1 * time.Millisecond)
 		}
 	}
-	/*
-		Buoy.KeepFloating(func() {
-
-		})
-	*/
 }

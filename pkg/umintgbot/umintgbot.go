@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -29,6 +28,10 @@ const (
 	PMHTML       = "HTML"
 	// Buffered I/O
 	responseBufSize = 0x100000
+	// async results
+	arcNoData   = 0x01
+	arcNoChan   = 0x02
+	arcDataDone = 0x03
 )
 
 type (
@@ -86,7 +89,7 @@ func (tgbc TGMinBotCore) jsonRPC(params JSONStruct, apiMethod string) (rawrespon
 	response, err := http.Post(apiBaseURL+tgbc.APIToken+"/"+apiMethod, apiMIMEType, bytes.NewBuffer(jsonparams))
 	if err == nil {
 		defer response.Body.Close()
-		rawresponse, err := ioutil.ReadAll(response.Body)
+		rawresponse, err := io.ReadAll(response.Body)
 		if err == nil {
 			return rawresponse, err
 		} else {
@@ -98,16 +101,17 @@ func (tgbc TGMinBotCore) jsonRPC(params JSONStruct, apiMethod string) (rawrespon
 }
 
 func (tgbc *TGMinBotCore) jsonRPCWorkerThread(params JSONStruct, apiMethod string) {
+	defer close(tgbc.respoChan)
 	jsonparams, _ := json.Marshal(params)
+	// simulate network error such as inaccessible host
 	response, err := http.Post(apiBaseURL+tgbc.APIToken+"/"+apiMethod, apiMIMEType, bytes.NewBuffer(jsonparams))
 	if err == nil {
 		defer response.Body.Close()
-		rawresponse, err := ioutil.ReadAll(response.Body)
+		rawresponse, err := io.ReadAll(response.Body)
 		if (err == nil) && (tgbc.respoChan != nil) {
 			for i := range rawresponse {
 				tgbc.respoChan <- rawresponse[i]
 			}
-			close(tgbc.respoChan)
 		}
 	}
 }
@@ -121,24 +125,31 @@ func (tgbc *TGMinBotCore) jsonRPCAsyncCommit(params JSONStruct, apiMethod string
 	return false
 }
 
-func (tgbc *TGMinBotCore) jsonRPCAsyncResult() (rawresponse []byte) {
+func (tgbc *TGMinBotCore) jsonRPCAsyncResult() (rawresponse []byte, arcode byte) {
 	if tgbc.respoChan != nil {
 		select {
 		case res, chanopen := <-tgbc.respoChan:
-			rawresponse = append(rawresponse, res)
+			if res != 0x00 {
+				rawresponse = append(rawresponse, res)
+			}
 			if chanopen {
 				// read the rest of it, if any
 				for res = range tgbc.respoChan {
 					rawresponse = append(rawresponse, res)
 				}
 			}
-			tgbc.respoChan = nil
-			return rawresponse
+			if len(rawresponse) > 0 {
+				return rawresponse, arcDataDone
+			}
+			if !chanopen {
+				tgbc.respoChan = nil
+				return nil, arcNoChan
+			}
 		default:
-			// no data is available yet
+			return nil, arcNoData
 		}
 	}
-	return nil
+	return nil, arcNoChan
 }
 
 func (tgbc TGMinBotCore) formRPC(params JSONStruct, apiMethod string, attFile AttachedFileData) (rawresponse []byte, err error) {
@@ -181,7 +192,7 @@ func (tgbc TGMinBotCore) formRPC(params JSONStruct, apiMethod string, attFile At
 		response, err := hclient.Do(req)
 		if err == nil {
 			defer response.Body.Close()
-			rawresponse, err := ioutil.ReadAll(response.Body)
+			rawresponse, err := io.ReadAll(response.Body)
 			if err == nil {
 				return rawresponse, err
 			} else {
@@ -201,8 +212,8 @@ func (tgbc *TGMinBotCore) WatchForMessagesAsync() bool {
 }
 
 func (tgbc *TGMinBotCore) LoadMessagesAsync() bool {
-	jsonraw := tgbc.jsonRPCAsyncResult()
-	if jsonraw != nil {
+	jsonraw, arc := tgbc.jsonRPCAsyncResult()
+	if arc == arcDataDone {
 		decoder := json.NewDecoder(bytes.NewReader(jsonraw))
 		decoder.UseNumber()
 		var getMessageInfo TGetMessageInfo
@@ -221,11 +232,11 @@ func (tgbc *TGMinBotCore) LoadMessagesAsync() bool {
 						}
 					}
 				}
-				return true
+				// return true
 			}
 		}
 	}
-	return false
+	return arc != arcNoChan
 }
 
 func (tgbc TGMinBotCore) SendMessage_Text(msgtext string, chatid int64, replyto int64) (sentmsg TSentMessageInfo, err error) {
