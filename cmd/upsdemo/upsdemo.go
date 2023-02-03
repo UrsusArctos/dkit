@@ -1,10 +1,11 @@
 package main
 
 import (
-	"UrsusArctos/dkit/pkg/upsdclient"
 	"fmt"
 	"net"
 	"os"
+
+	"github.com/UrsusArctos/dkit/pkg/upsdclient"
 )
 
 func main() {

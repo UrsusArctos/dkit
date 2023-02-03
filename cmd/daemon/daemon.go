@@ -1,10 +1,11 @@
 package main
 
 import (
-	"UrsusArctos/dkit/pkg/daemonizer"
-	"UrsusArctos/dkit/pkg/logmeow"
 	"fmt"
 	"time"
+
+	"github.com/UrsusArctos/dkit/pkg/daemonizer"
+	"github.com/UrsusArctos/dkit/pkg/logmeow"
 )
 
 type TMeowDaemon struct {

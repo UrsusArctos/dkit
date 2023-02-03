@@ -1,10 +1,11 @@
 package main
 
 import (
-	"UrsusArctos/dkit/pkg/umintgbot"
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/UrsusArctos/dkit/pkg/umintgbot"
 )
 
 var tgb umintgbot.TGMinBotCore
