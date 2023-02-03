@@ -18,7 +18,9 @@ const (
 	   --pid /full/path/to/daemon.pid
 	   or defaults to /run/name.pid
 	   --logpath /full/path/to				(nb: no filename!)
-	   or defaults to /var/log/name.log.gz
+	   or defaults to /var/log (assuming name.log.gz there)
+	   --foreground
+	   or defaults to false (implying being started as a daemon)
 	*/
 	// Config file
 	optConf  = "conf"
@@ -32,6 +34,10 @@ const (
 	optLog  = "logpath"
 	defLog  = "/var/log/"
 	descLog = "Directory for log files"
+	// Foreground
+	optFore  = "foreground"
+	defFore  = false
+	descFore = "Start in a foreground mode (don't daemonize)"
 )
 
 type (
@@ -39,12 +45,13 @@ type (
 		// internal
 		name    string
 		pidFile string
-		logPath string
 		// exported
-		ConfFile  string
-		FuncInit  TDaemonCycle
-		FuncClose TDaemonCycle
-		FuncMain  TDaemonCycle
+		Foreground bool
+		LogPath    string
+		ConfFile   string
+		FuncInit   TDaemonCycle
+		FuncClose  TDaemonCycle
+		FuncMain   TDaemonCycle
 	}
 
 	TDaemonCycle func() (err error)
@@ -67,7 +74,8 @@ func (ld *TLinuxDaemon) Close() {
 func (ld *TLinuxDaemon) parseCmdLine() {
 	flag.StringVar(&ld.ConfFile, optConf, fmt.Sprintf(defConf, ld.name), descConf)
 	flag.StringVar(&ld.pidFile, optPID, fmt.Sprintf(defPID, ld.name), descPID)
-	flag.StringVar(&ld.logPath, optLog, defLog, descLog)
+	flag.StringVar(&ld.LogPath, optLog, defLog, descLog)
+	flag.BoolVar(&ld.Foreground, optFore, defFore, descFore)
 	flag.Parse()
 }
 
