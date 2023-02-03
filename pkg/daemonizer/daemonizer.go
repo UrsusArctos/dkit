@@ -87,12 +87,12 @@ func (ld TLinuxDaemon) writePidFile() {
 	}
 }
 
-func (ld TLinuxDaemon) Run() (err error) {
+func (ld TLinuxDaemon) Run() error {
 	// run initialization, if any
 	if ld.FuncInit != nil {
-		err = ld.FuncInit()
-		if err != nil {
-			return err
+		errInit := ld.FuncInit()
+		if errInit != nil {
+			return errInit
 		}
 	}
 	// set this daemon to receive SIGINT
@@ -100,10 +100,10 @@ func (ld TLinuxDaemon) Run() (err error) {
 	signal.Notify(kill, os.Interrupt)
 	// run main loop
 	var sigint bool = false
-	for interr := ld.FuncMain(); (interr == nil) && (!sigint); interr = ld.FuncMain() {
+	var errMain error
+	for errMain = ld.FuncMain(); (errMain == nil) && (!sigint); errMain = ld.FuncMain() {
 		// check if this cycle failed
-		if interr != nil {
-			err = interr
+		if errMain != nil {
 			break
 		}
 		// check if SIGINT is received
@@ -111,7 +111,7 @@ func (ld TLinuxDaemon) Run() (err error) {
 		case <-kill:
 			{
 				sigint = true
-				err = nil
+				errMain = nil
 			}
 		default:
 		}
@@ -122,13 +122,13 @@ func (ld TLinuxDaemon) Run() (err error) {
 
 	// run finalization, if any
 	if ld.FuncClose != nil {
-		err = ld.FuncClose()
-		if err != nil {
-			return err
+		errClose := ld.FuncClose()
+		if errClose != nil {
+			return errClose
 		}
 	}
 	// all done, exit
-	return err
+	return errMain
 }
 
 func (ld TLinuxDaemon) TestFunc() {
