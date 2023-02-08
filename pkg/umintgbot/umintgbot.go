@@ -26,11 +26,9 @@ const (
 	PMMarkdown   = "Markdown"
 	PMMarkdownV2 = "MarkdownV2"
 	PMHTML       = "HTML"
-	// Buffered I/O
-	responseBufSize = 0x100000
 	// async results
-	arcNoData   = 0x01
 	arcNoChan   = 0x02
+	arcNoData   = 0x01
 	arcDataDone = 0x03
 )
 
@@ -43,7 +41,7 @@ type (
 		MSGHandler   TGMessageHandler
 		MSGParseMode string
 		// internals
-		respoChan chan byte
+		respoChan chan *http.Response
 	}
 
 	// Common structure used to convey API call parameters
@@ -103,22 +101,15 @@ func (tgbc TGMinBotCore) jsonRPC(params JSONStruct, apiMethod string) (rawrespon
 func (tgbc *TGMinBotCore) jsonRPCWorkerThread(params JSONStruct, apiMethod string) {
 	defer close(tgbc.respoChan)
 	jsonparams, _ := json.Marshal(params)
-	// simulate network error such as inaccessible host
 	response, err := http.Post(apiBaseURL+tgbc.APIToken+"/"+apiMethod, apiMIMEType, bytes.NewBuffer(jsonparams))
-	if err == nil {
-		defer response.Body.Close()
-		rawresponse, err := io.ReadAll(response.Body)
-		if (err == nil) && (tgbc.respoChan != nil) {
-			for i := range rawresponse {
-				tgbc.respoChan <- rawresponse[i]
-			}
-		}
+	if (err == nil) && (tgbc.respoChan != nil) {
+		tgbc.respoChan <- response
 	}
 }
 
 func (tgbc *TGMinBotCore) jsonRPCAsyncCommit(params JSONStruct, apiMethod string) bool {
 	if tgbc.respoChan == nil {
-		tgbc.respoChan = make(chan byte, responseBufSize)
+		tgbc.respoChan = make(chan *http.Response, 2)
 		go tgbc.jsonRPCWorkerThread(params, apiMethod)
 		return true
 	}
@@ -128,27 +119,21 @@ func (tgbc *TGMinBotCore) jsonRPCAsyncCommit(params JSONStruct, apiMethod string
 func (tgbc *TGMinBotCore) jsonRPCAsyncResult() (rawresponse []byte, arcode byte) {
 	if tgbc.respoChan != nil {
 		select {
-		case res, chanopen := <-tgbc.respoChan:
-			if res != 0x00 {
-				rawresponse = append(rawresponse, res)
-			}
-			if chanopen {
-				// read the rest of it, if any
-				for res = range tgbc.respoChan {
-					rawresponse = append(rawresponse, res)
+		case hresp, chanok := <-tgbc.respoChan:
+			if (hresp != nil) && chanok {
+				// valid http.Response received
+				defer hresp.Body.Close()
+				rawresp, err := io.ReadAll(hresp.Body)
+				if err == nil {
+					return rawresp, arcDataDone
 				}
 			}
-			if len(rawresponse) > 0 {
-				return rawresponse, arcDataDone
-			}
-			if !chanopen {
-				tgbc.respoChan = nil
-				return nil, arcNoChan
-			}
 		default:
+			// no response yet
 			return nil, arcNoData
 		}
 	}
+	tgbc.respoChan = nil
 	return nil, arcNoChan
 }
 
@@ -232,7 +217,6 @@ func (tgbc *TGMinBotCore) LoadMessagesAsync() bool {
 						}
 					}
 				}
-				// return true
 			}
 		}
 	}

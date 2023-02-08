@@ -127,6 +127,7 @@ func (meow TLogMeow) logEventCommon(eventdescr string, severity syslog.Priority)
 	// log file (timeprefix : YES, coloring : NO, addLF : YES)
 	if meow.IsFacilityEnabled(FacFile) {
 		meow.gzwr.Write([]byte(fmt.Sprintf("%s %s\n", timePrefix(), eventdescr)))
+		meow.gzwr.Flush()
 	}
 	// syslog (timeprefix : NO, coloring : NO, addLF : NO)
 	if meow.IsFacilityEnabled(FacSyslog) {

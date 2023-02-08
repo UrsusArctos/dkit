@@ -48,7 +48,9 @@ func main() {
 		fmt.Print("[!]")
 		for tgb.LoadMessagesAsync() {
 			// probably replace this sleep with runtime.Gosched() in high-load applications
-			time.Sleep(1 * time.Millisecond)
+			fmt.Print(".")
+			time.Sleep(200 * time.Millisecond)
 		}
+		time.Sleep(200 * time.Millisecond)
 	}
 }
