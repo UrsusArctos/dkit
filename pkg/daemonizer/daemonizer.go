@@ -101,20 +101,25 @@ func (ld TLinuxDaemon) Run() error {
 	// run main loop
 	var sigint bool = false
 	var errMain error
-	for errMain = ld.FuncMain(); (errMain == nil) && (!sigint); errMain = ld.FuncMain() {
-		// check if this cycle failed
-		if errMain != nil {
-			break
-		}
-		// check if SIGINT is received
-		select {
-		case <-kill:
-			{
-				sigint = true
-				errMain = nil
+	if ld.FuncMain != nil {
+		for errMain = ld.FuncMain(); (errMain == nil) && (!sigint); errMain = ld.FuncMain() {
+			// check if this cycle failed
+			if errMain != nil {
+				break
 			}
-		default:
+			// check if SIGINT is received
+			select {
+			case <-kill:
+				{
+					sigint = true
+					errMain = nil
+				}
+			default:
+			}
 		}
+	} else {
+		// no main function specified, that's an error
+		errMain = fmt.Errorf("FuncMain() is not set")
 	}
 
 	// stop receiving signals

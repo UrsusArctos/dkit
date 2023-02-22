@@ -91,11 +91,11 @@ func (UPSDC *TUPSDClientConnection) Login(username string, password string) (err
 				if resp[0] == kwOK {
 					return UPSDC.loadUPSlist()
 				} else {
-					return fmt.Errorf(errLOGINFAIL, resp[0])
+					return fmt.Errorf("login failed: %v", resp[0])
 				}
 			}
 		} else {
-			return fmt.Errorf(errLOGINFAIL, resp[0])
+			return fmt.Errorf("login failed: %v", resp[0])
 		}
 	}
 	//

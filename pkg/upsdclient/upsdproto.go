@@ -1,8 +1,6 @@
 package upsdclient
 
 const (
-	// action logic
-	LoadOffTimeout = 15
 	// bracket keywords
 	kwBEGIN = "BEGIN"
 	kwEND   = "END"
@@ -35,8 +33,4 @@ const (
 	// Regexes
 	reLISTLINE3F = `(\S+)\s(\S+)\s\"([^\"]+)\"`
 	reLISTLINE4F = `(\S+)\s(\S+)\s(\S+)\s\"([^\"]+)\"`
-	// error descriptions
-	errLOGINFAIL = "login failure: %s"
-	// notify texts
-	NOTIFYTEXT = "Power loss: initiating shutdown!"
 )
