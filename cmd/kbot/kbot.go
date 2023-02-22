@@ -18,10 +18,10 @@ func ActualHandler(msginfo kotobot.TMessage) {
 	if err != nil {
 		fmt.Printf("%+v\n%+v\n", sentmsg, err)
 	}
-	// This is how to send and MP3 file
-	sentaudiomsg, err := tgb.SendAudio(msginfo.From.ID, "sample.mp3", fmt.Sprintf("Downloaded using @%s", tgb.BotInfo.UserName))
+	// Send picture as file
+	sentpicmsg, err := tgb.SendDocument(msginfo.From.ID, "cat.jpg", fmt.Sprintf("Downloaded using @%s", tgb.BotInfo.UserName))
 	if err != nil {
-		fmt.Printf("%+v\n%+v\n", sentaudiomsg, err)
+		fmt.Printf("%+v\n%+v\n", sentpicmsg, err)
 	}
 }
 
@@ -38,6 +38,7 @@ func main() {
 	for {
 		if tgb.Updates_ProcessAll() {
 			fmt.Print("#")
+			tgb.Updates_StartWatch()
 		} else {
 			fmt.Print(".")
 			time.Sleep(500 * time.Millisecond)

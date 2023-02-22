@@ -340,6 +340,18 @@ func (kb TKotoBot) SendDocument(mToWhere int64, fileName string, caption string)
 	return TMessage{}, fierr
 }
 
+func (kb TKotoBot) SendDocument_TGCloud(mToWhere int64, fileID string, caption string) (TMessage, error) {
+	// Compose params
+	params := TCallParams{"chat_id": mToWhere, fnDocument: fileID, "caption": caption}
+	// X. Send JSONRPC API request
+	rawRes, apierr := kb.apiSyncCallJSON(params, apiSendDocument)
+	if apierr == nil {
+		imsg, merr := kb.interpretAPICallResult(rawRes, TMessage{})
+		return imsg.(TMessage), merr
+	}
+	return TMessage{}, apierr
+}
+
 func (kb TKotoBot) SendPhoto(mToWhere int64, fileName string, caption string) (TMessage, error) {
 	_, fierr := os.Stat(fileName)
 	if fierr == nil {
@@ -382,24 +394,3 @@ func (kb TKotoBot) SendAudio(mToWhere int64, fileName string, caption string) (T
 	}
 	return TMessage{}, fierr
 }
-
-/*
-func (tgbc TGMinBotCore) Send_File_Preloaded(file_id string, mReference TMessageInfo) (sentaudio TSentAudioMessageInfo, err error) {
-	// Compose API Request
-	APIReq := JSONStruct{"chat_id": mReference.Chat.ID, "document": file_id}
-	// Send JSONRPC API request
-	rawr, err := tgbc.jsonRPC(APIReq, apiSendDocument)
-	// Decode result
-	if err == nil {
-		decoder := json.NewDecoder(bytes.NewReader(rawr))
-		decoder.UseNumber()
-		err := decoder.Decode(&sentaudio)
-		if err == nil {
-			if sentaudio.Ok {
-				return sentaudio, nil
-			}
-		}
-	}
-	return sentaudio, err
-}
-*/
