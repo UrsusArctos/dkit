@@ -12,14 +12,14 @@ var tgb kotobot.TKotoBot
 
 func ActualHandler(msginfo kotobot.TMessage) {
 	// Show received message
-	fmt.Printf("%s [%d]: %s \n", msginfo.From.UserName, msginfo.From.ID, msginfo.Text)
+	fmt.Printf("%s [%d] in %d: %s \n", msginfo.From.UserName, msginfo.From.ID, msginfo.Chat.ID, msginfo.Text)
 	// Send quoted reply
 	sentmsg, err := tgb.SendMessage(fmt.Sprintf("Hello, %s!", msginfo.From.UserName), true, msginfo)
 	if err != nil {
 		fmt.Printf("%+v\n%+v\n", sentmsg, err)
 	}
 	// Send picture as file
-	sentpicmsg, err := tgb.SendDocument(msginfo.From.ID, "cat.jpg", fmt.Sprintf("Downloaded using @%s", tgb.BotInfo.UserName))
+	sentpicmsg, err := tgb.SendDocument(msginfo.Chat.ID, "cat.jpg", fmt.Sprintf("Downloaded using @%s", tgb.BotInfo.UserName))
 	if err != nil {
 		fmt.Printf("%+v\n%+v\n", sentpicmsg, err)
 	}

@@ -44,9 +44,10 @@ const (
 )
 
 type (
-	// Imported API
+	// Imported structures
 	TAPICallResult = tgtypes.APIResponse
 	TUser          = tgtypes.User
+	TChat          = tgtypes.Chat
 	TUpdate        = tgtypes.Update
 	TMessage       = tgtypes.Message
 
@@ -85,24 +86,26 @@ type (
 )
 
 // Constructor
-func NewInstance(Token string) (kb TKotoBot, ierr error) {
+func NewInstance(Token string) (TKotoBot, error) {
 	resp, err := http.Post(TKotoBot{APIToken: Token}.formatAPIURL(apiGetMe), apiMIMEType, nil)
 	if err == nil {
 		defer resp.Body.Close()
-		decoder := json.NewDecoder(resp.Body)
-		decoder.UseNumber()
 		var apires TAPICallResult
-		err = decoder.Decode(&apires)
+		err = json.NewDecoder(resp.Body).Decode(&apires)
 		if err == nil {
 			if apires.Ok {
-				kb.APIToken = Token
-				kb.respoChan = make(chan TAsyncAPICallResult, respoChanBacklog)
-				kb.ParseMode = PMPlainText
+				kb := TKotoBot{
+					APIToken:       Token,
+					respoChan:      make(chan TAsyncAPICallResult, respoChanBacklog),
+					ParseMode:      PMPlainText,
+					MessageHandler: nil,
+				}
 				err = json.Unmarshal(apires.Result, &kb.BotInfo)
+				return kb, err
 			}
 		}
 	}
-	return kb, err
+	return TKotoBot{}, err
 }
 
 // Helper formatter
@@ -146,7 +149,7 @@ func (kb TKotoBot) apiAsyncCallJSON_GetResult() (bool, []byte, error) {
 			rawResponse, rerr := io.ReadAll(R.httpResponse.Body)
 			return true, rawResponse, rerr
 		} else {
-			// relay http.Post's error to the caller
+			// relay Post's error to the caller
 			return true, nil, R.hresError
 		}
 	default:
@@ -219,7 +222,7 @@ func (kb *TKotoBot) Updates_ProcessAll() bool { // True means some updates were 
 	up, jsonraw, uerr := kb.apiAsyncCallJSON_GetResult()
 	if up && (uerr == nil) {
 		updi, interr := kb.interpretAPICallResult(jsonraw, TUpdate{})
-		if interr == nil {
+		if (updi != nil) && (interr == nil) {
 			update := updi.([]TUpdate)
 			if len(update) > 0 {
 				for upidx := range update {
@@ -262,12 +265,12 @@ func (kb TKotoBot) interpretAPICallResult(rawRes []byte, typeHint interface{}) (
 				resdecoder.Decode(&upds)
 				return upds, nil
 			default:
-				return nil, fmt.Errorf("unknown type hint")
+				return nil, fmt.Errorf("unknown type hint; error %d %s", apires.ErrorCode, apires.Description)
 			}
 		}
-		return nil, fmt.Errorf("call to API resulted in error")
+		return nil, fmt.Errorf("call to API resulted in error %d %s", apires.ErrorCode, apires.Description)
 	}
-	return nil, fmt.Errorf("invalid input JSON")
+	return nil, fmt.Errorf("invalid input JSON; error %d %s", apires.ErrorCode, apires.Description)
 }
 
 // Sending
@@ -286,7 +289,10 @@ func (kb TKotoBot) SendMessage(mText string, mUseReply bool, mRefMsg TMessage) (
 	rawRes, apierr := kb.apiSyncCallJSON(params, apiSendMessage)
 	if apierr == nil {
 		imsg, merr := kb.interpretAPICallResult(rawRes, TMessage{})
-		return imsg.(TMessage), merr
+		if imsg != nil {
+			return imsg.(TMessage), merr
+		}
+		return TMessage{}, merr
 	}
 	return TMessage{}, apierr
 }
@@ -300,7 +306,10 @@ func (kb TKotoBot) ForwardMessage(mToWhere int64, mRefMsg TMessage) (TMessage, e
 	rawRes, apierr := kb.apiSyncCallJSON(params, apiForwardMessage)
 	if apierr == nil {
 		imsg, merr := kb.interpretAPICallResult(rawRes, TMessage{})
-		return imsg.(TMessage), merr
+		if imsg != nil {
+			return imsg.(TMessage), merr
+		}
+		return TMessage{}, merr
 	}
 	return TMessage{}, apierr
 }
@@ -320,7 +329,10 @@ func (kb TKotoBot) sendFileCommon(mToWhere int64, attFile TAttachment, addParams
 	rawRes, apierr := kb.apiSyncCallForm(params, apiMethod[attFile.FieldName], &attFile)
 	if apierr == nil {
 		imsg, merr := kb.interpretAPICallResult(rawRes, TMessage{})
-		return imsg.(TMessage), merr
+		if imsg != nil {
+			return imsg.(TMessage), merr
+		}
+		return TMessage{}, merr
 	}
 	return TMessage{}, apierr
 }
@@ -347,7 +359,10 @@ func (kb TKotoBot) SendDocument_TGCloud(mToWhere int64, fileID string, caption s
 	rawRes, apierr := kb.apiSyncCallJSON(params, apiSendDocument)
 	if apierr == nil {
 		imsg, merr := kb.interpretAPICallResult(rawRes, TMessage{})
-		return imsg.(TMessage), merr
+		if imsg != nil {
+			return imsg.(TMessage), merr
+		}
+		return TMessage{}, merr
 	}
 	return TMessage{}, apierr
 }
