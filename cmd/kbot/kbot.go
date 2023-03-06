@@ -27,7 +27,7 @@ func ActualHandler(msginfo kotobot.TMessage) {
 
 func main() {
 	// Read Bot API token from file
-	token, _ := os.ReadFile("token.txt")
+	token, _ := os.ReadFile(".creds/token-tgbot.txt")
 	// Initialize bot
 	tgb, _ = kotobot.NewInstance(string(token))
 	fmt.Println("Started as @" + tgb.BotInfo.UserName)

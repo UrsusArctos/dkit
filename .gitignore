@@ -1,5 +1,4 @@
 .vscode
-token.txt
-password.txt
+.creds
 *.mp3
 *.jpg
