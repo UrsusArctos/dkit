@@ -30,7 +30,7 @@ type (
 )
 
 const (
-	chatRoleSystem = oaimport.ChatMessageRoleSystem
-	chatRoleUser   = oaimport.ChatMessageRoleUser
-	// chatRoleAssistant = oaimport.ChatMessageRoleAssistant
+	ChatRoleSystem    = oaimport.ChatMessageRoleSystem
+	ChatRoleUser      = oaimport.ChatMessageRoleUser
+	ChatRoleAssistant = oaimport.ChatMessageRoleAssistant
 )

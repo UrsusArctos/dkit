@@ -28,10 +28,11 @@ func (sqldb TSQLite3DB) Close() {
 	sqldb.db.Close()
 }
 
-func (sqldb TSQLite3DB) QuerySingle(query string) (sql.Result, error) {
+func (sqldb TSQLite3DB) QuerySingle(query string, args ...any) (sql.Result, error) {
 	stmt, perr := sqldb.db.Prepare(query)
 	if perr == nil {
-		res, eerr := stmt.Exec()
+		defer stmt.Close()
+		res, eerr := stmt.Exec(args...)
 		if eerr == nil {
 			return res, eerr
 		}
@@ -40,8 +41,8 @@ func (sqldb TSQLite3DB) QuerySingle(query string) (sql.Result, error) {
 	return nil, perr
 }
 
-func (sqldb TSQLite3DB) QueryData(query string) (TSQLite3ResultRows, error) {
-	rawRows, err := sqldb.db.Query(query)
+func (sqldb TSQLite3DB) QueryData(query string, args ...any) (TSQLite3ResultRows, error) {
+	rawRows, err := sqldb.db.Query(query, args...)
 	if err == nil {
 		return TSQLite3ResultRows{rows: rawRows}, nil
 	}

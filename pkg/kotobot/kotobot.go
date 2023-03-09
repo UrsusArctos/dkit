@@ -87,12 +87,12 @@ type (
 
 // Constructor
 func NewInstance(Token string) (TKotoBot, error) {
-	resp, err := http.Post(TKotoBot{APIToken: Token}.formatAPIURL(apiGetMe), apiMIMEType, nil)
-	if err == nil {
+	resp, posterr := http.Post(TKotoBot{APIToken: Token}.formatAPIURL(apiGetMe), apiMIMEType, nil)
+	if posterr == nil {
 		defer resp.Body.Close()
 		var apires TAPICallResult
-		err = json.NewDecoder(resp.Body).Decode(&apires)
-		if err == nil {
+		decerr := json.NewDecoder(resp.Body).Decode(&apires)
+		if decerr == nil {
 			if apires.Ok {
 				kb := TKotoBot{
 					APIToken:       Token,
@@ -100,12 +100,13 @@ func NewInstance(Token string) (TKotoBot, error) {
 					ParseMode:      PMPlainText,
 					MessageHandler: nil,
 				}
-				err = json.Unmarshal(apires.Result, &kb.BotInfo)
-				return kb, err
+				unerr := json.Unmarshal(apires.Result, &kb.BotInfo)
+				return kb, unerr
 			}
 		}
+		return TKotoBot{}, decerr
 	}
-	return TKotoBot{}, err
+	return TKotoBot{}, posterr
 }
 
 // Helper formatter

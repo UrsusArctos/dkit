@@ -163,15 +163,11 @@ func (ch *TChat) recordNew(newMessage TChatMessage) {
 	ch.History = append(ch.History, TChatMessage{Role: newMessage.Role, Content: strings.Replace(newMessage.Content, "\n", "", 2)})
 }
 
-func (ch *TChat) SetupAssistant(traitPrompt string) {
-	ch.recordNew(TChatMessage{Role: chatRoleSystem, Content: traitPrompt})
+func (ch *TChat) RecordMessage(role string, message string) {
+	ch.recordNew(TChatMessage{Role: role, Content: message})
 }
 
-func (ch *TChat) Say(prompt string) {
-	ch.recordNew(TChatMessage{Role: chatRoleUser, Content: prompt})
-}
-
-func (ch *TChat) PickAnswer(ccc TChatCompletionChoices, index ...int) {
+func (ch *TChat) PickAnswer(ccc TChatCompletionChoices, index ...int) TChatMessage {
 	var realIndex int = 0
 	if len(index) > 0 {
 		realIndex = index[0]
@@ -179,6 +175,8 @@ func (ch *TChat) PickAnswer(ccc TChatCompletionChoices, index ...int) {
 	for _, ccci := range ccc {
 		if ccci.Index == realIndex {
 			ch.recordNew(ccci.Message)
+			return ccci.Message
 		}
 	}
+	return TChatMessage{}
 }
