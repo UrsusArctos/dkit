@@ -21,7 +21,7 @@ func main() {
 			cc, _ := oac.GetChatCompletion(chat, 2)
 			chat.PickAnswer(cc, 1)
 			chat.Say("Thank you!")
-			cc, _ = oac.GetChatCompletion(chat, 2)
+			cc, _ = oac.GetChatCompletion(chat, 1)
 			chat.PickAnswer(cc)
 			fmt.Printf("CHAT: %+v\n", chat)
 		}
