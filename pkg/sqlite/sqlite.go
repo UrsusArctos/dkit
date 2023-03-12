@@ -70,3 +70,7 @@ func (r TSQLite3ResultRows) UnloadNextRow() TResultDataRow {
 	}
 	return nil
 }
+
+func (r TSQLite3ResultRows) Close() {
+	r.rows.Close()
+}

@@ -103,7 +103,10 @@ func (TB *TTalkieBot) MessageHandler(msginfo kotobot.TMessage) {
 			TB.handlePrivateMessage(msginfo)
 		} else {
 			// Say a hint
-			TB.Bot.SendMessage(strHint, true, msginfo)
+			_, senderr := TB.Bot.SendMessage(strHint, true, msginfo)
+			if senderr != nil {
+				TB.Logger.LogEventError(fmt.Sprintf("Error sending message: %+v", senderr))
+			}
 		}
 	}
 }
@@ -114,6 +117,7 @@ func (TB *TTalkieBot) handlePrivateMessage(msginfo kotobot.TMessage) {
 	defer chatCurrent.Clear()
 	chist, cherr := TB.S3DB.QueryData(sqlRetrieveHistory, msginfo.From.ID)
 	if cherr == nil {
+		defer chist.Close()
 		for {
 			datarow := chist.UnloadNextRow()
 			if datarow == nil {
