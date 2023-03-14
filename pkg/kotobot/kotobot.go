@@ -30,6 +30,8 @@ const (
 	apiSendDocument   = "sendDocument"
 	apiSendAudio      = "sendAudio"
 	apiSendPhoto      = "sendPhoto"
+	// API Constraints
+	MaxMsgLength = 0x1000
 	// field names
 	fnDocument = "document"
 	fnAudio    = "audio"

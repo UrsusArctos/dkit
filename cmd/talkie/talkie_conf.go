@@ -6,6 +6,7 @@ const (
 	strExiting   = "Exiting"
 	strStartedAs = "Started as @%s"
 	strHint      = "Try writing meaningful sentences."
+	strCleared   = "History cleared. The AI now does not remember previous conversation."
 	// OpenAI
 	PrefModel = "gpt-3.5-turbo"
 	// SQL
@@ -18,6 +19,7 @@ const (
 		[message] TEXT  NULL)`
 	sqlRecordMessage   = `INSERT INTO chatlog (tgid, role, message) VALUES ($1,$2,$3)`
 	sqlRetrieveHistory = `SELECT role,message FROM chatlog WHERE tgid=$1 ORDER BY tstamp ASC`
+	sqlClearHistory    = `DELETE FROM chatlog WHERE tgid=$1`
 )
 
 type TTalkieConfig struct {

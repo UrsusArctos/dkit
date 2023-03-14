@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/UrsusArctos/dkit/pkg/daemonizer"
@@ -91,22 +92,45 @@ func (TB *TTalkieBot) BotMain() (err error) {
 }
 
 func (TB *TTalkieBot) MessageHandler(msginfo kotobot.TMessage) {
-	// Make sure the message is private and consists of text, ignore all other types
+	// Make sure the message is private and has text, ignore all other types
 	if (msginfo.Chat.Type == "private") && (len(msginfo.Text) > 0) {
-		// Unless it is a "/start", record user message to chatlog
-		if msginfo.Text != "/start" {
-			_, serr := TB.S3DB.QuerySingle(sqlRecordMessage, msginfo.From.ID, openai.ChatRoleUser, msginfo.Text)
-			if serr != nil {
-				TB.Logger.LogEventError(fmt.Sprintf("Error recording message: %+v", serr))
+		var senderr error
+		switch msginfo.Text {
+		case "/start":
+			{ // Give a hint
+				_, senderr = TB.Bot.SendMessage(strHint, true, msginfo)
 			}
-			TB.Logger.LogEventInfo(fmt.Sprintf("[%d]: %s", msginfo.From.ID, msginfo.Text))
-			TB.handlePrivateMessage(msginfo)
-		} else {
-			// Say a hint
-			_, senderr := TB.Bot.SendMessage(strHint, true, msginfo)
-			if senderr != nil {
-				TB.Logger.LogEventError(fmt.Sprintf("Error sending message: %+v", senderr))
+		case "/models":
+			{ // List available models reported by an API server
+				var mtext strings.Builder
+				for _, mdl := range TB.AIClient.Models.Data {
+					mtext.WriteString(fmt.Sprintf("%s (%s)\n", mdl.ID, time.Unix(mdl.CreatedAt, 0).Format("Jan 2006")))
+				}
+				_, senderr = TB.Bot.SendMessage(mtext.String(), true, msginfo)
 			}
+		case "/reset":
+			{ // Clear locally recorded chat history
+				_, sqlerr := TB.S3DB.QuerySingle(sqlClearHistory, msginfo.From.ID)
+				if sqlerr != nil {
+					TB.Logger.LogEventError(fmt.Sprintf("Database error: %+v", sqlerr))
+				}
+				_, senderr = TB.Bot.SendMessage(strCleared, true, msginfo)
+			}
+		default:
+			{ // Record this message in history
+				_, sqlerr := TB.S3DB.QuerySingle(sqlRecordMessage, msginfo.From.ID, openai.ChatRoleUser, msginfo.Text)
+				if sqlerr != nil {
+					TB.Logger.LogEventError(fmt.Sprintf("Error recording message: %+v", sqlerr))
+				}
+				// Log message
+				TB.Logger.LogEventInfo(fmt.Sprintf("[%d]: %s", msginfo.From.ID, msginfo.Text))
+				// Handle message
+				TB.handlePrivateMessage(msginfo)
+			}
+		}
+		// React to error
+		if senderr != nil {
+			TB.Logger.LogEventError(fmt.Sprintf("Error sending message: %+v", senderr))
 		}
 	}
 }
