@@ -27,6 +27,10 @@ type (
 	TChatCompletionRequest  = oaimport.ChatCompletionRequest
 	TChatCompletionResponse = oaimport.ChatCompletionResponse
 	TChatCompletionChoices  = []oaimport.ChatCompletionChoice
+
+	// Image generation
+	TImageRequest   = oaimport.ImageRequest
+	TGeneratedImage = oaimport.ImageResponse
 )
 
 const (

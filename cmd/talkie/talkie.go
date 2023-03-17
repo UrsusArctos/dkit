@@ -91,46 +91,82 @@ func (TB *TTalkieBot) BotMain() (err error) {
 	return nil
 }
 
+// Ad-hoc blocklist. Needs to be reworked if the abuse problem persists
+func (TB *TTalkieBot) IsBanned(visavis int64) bool {
+	Banned := []int64{1468641954}
+	var res bool = false
+	for _, tgid := range Banned {
+		res = res || (visavis == tgid)
+	}
+	return res
+}
+
+func (TB TTalkieBot) CheckSpecificError(prefix string, specerror error) {
+	if specerror != nil {
+		TB.Logger.LogEventError(fmt.Sprintf("%s:%v", prefix, specerror))
+	}
+}
+
 func (TB *TTalkieBot) MessageHandler(msginfo kotobot.TMessage) {
 	// Make sure the message is private and has text, ignore all other types
-	if (msginfo.Chat.Type == "private") && (len(msginfo.Text) > 0) {
-		var senderr error
+	if (msginfo.Chat.Type == "private") && (len(msginfo.Text) > 0) && (!TB.IsBanned(msginfo.From.ID)) {
 		switch msginfo.Text {
 		case "/start":
 			{ // Give a hint
-				_, senderr = TB.Bot.SendMessage(strHint, true, msginfo)
+				TB.Logger.LogEventInfo(fmt.Sprintf("[%d] is greeting", msginfo.From.ID))
+				_, senderr := TB.Bot.SendMessage(strHint, true, msginfo)
+				TB.CheckSpecificError("Error sending greeting+hint message", senderr)
 			}
 		case "/models":
 			{ // List available models reported by an API server
+				TB.Logger.LogEventInfo(fmt.Sprintf("[%d] has requested list of models", msginfo.From.ID))
 				var mtext strings.Builder
 				for _, mdl := range TB.AIClient.Models.Data {
 					mtext.WriteString(fmt.Sprintf("%s (%s)\n", mdl.ID, time.Unix(mdl.CreatedAt, 0).Format("Jan 2006")))
 				}
-				_, senderr = TB.Bot.SendMessage(mtext.String(), true, msginfo)
+				_, senderr := TB.Bot.SendMessage(mtext.String(), true, msginfo)
+				TB.CheckSpecificError("Error sending models list", senderr)
 			}
 		case "/reset":
 			{ // Clear locally recorded chat history
+				TB.Logger.LogEventWarning(fmt.Sprintf("[%d] has requested history clearing", msginfo.From.ID))
 				_, sqlerr := TB.S3DB.QuerySingle(sqlClearHistory, msginfo.From.ID)
-				if sqlerr != nil {
-					TB.Logger.LogEventError(fmt.Sprintf("Database error: %+v", sqlerr))
-				}
-				_, senderr = TB.Bot.SendMessage(strCleared, true, msginfo)
+				TB.CheckSpecificError("Database error", sqlerr)
+				_, senderr := TB.Bot.SendMessage(strCleared, true, msginfo)
+				TB.CheckSpecificError("Error sending clearing reply", senderr)
 			}
 		default:
-			{ // Record this message in history
-				_, sqlerr := TB.S3DB.QuerySingle(sqlRecordMessage, msginfo.From.ID, openai.ChatRoleUser, msginfo.Text)
-				if sqlerr != nil {
-					TB.Logger.LogEventError(fmt.Sprintf("Error recording message: %+v", sqlerr))
+			{ // Check if this is a custom command
+				if strings.HasPrefix(msginfo.Text, prefixImageGen) {
+					// Image generation requested, extract prompt
+					_, prompt, _ := strings.Cut(msginfo.Text, prefixImageGen)
+					prompt = strings.TrimSpace(prompt)
+					// Log attempt
+					TB.Logger.LogEventInfo(fmt.Sprintf("[%d]-imagen: %s", msginfo.From.ID, prompt))
+					// Generate
+					gi, gierr := TB.AIClient.GetGeneratedImage(prompt, 1)
+					TB.CheckSpecificError("Error generating image", gierr)
+					if gierr == nil {
+						// && ()
+						if len(gi.Data) > 0 {
+							_, senderr := TB.Bot.SendMessage(gi.Data[0].URL, true, msginfo)
+							TB.CheckSpecificError("Error sending URL of image", senderr)
+						} else {
+							TB.Logger.LogEventError(strNoData)
+							_, senderr := TB.Bot.SendMessage(strNoData, true, msginfo)
+							TB.CheckSpecificError("Error sending error message", senderr)
+						}
+					}
+				} else { // Regular chat message
+					// Log message
+					TB.Logger.LogEventInfo(fmt.Sprintf("[%d]: %s", msginfo.From.ID, msginfo.Text))
+					// Record this message in history
+					_, sqlerr := TB.S3DB.QuerySingle(sqlRecordMessage, msginfo.From.ID, openai.ChatRoleUser, msginfo.Text)
+					TB.CheckSpecificError("Database error", sqlerr)
+					// Handle message
+					TB.handlePrivateMessage(msginfo)
 				}
-				// Log message
-				TB.Logger.LogEventInfo(fmt.Sprintf("[%d]: %s", msginfo.From.ID, msginfo.Text))
-				// Handle message
-				TB.handlePrivateMessage(msginfo)
 			}
-		}
-		// React to error
-		if senderr != nil {
-			TB.Logger.LogEventError(fmt.Sprintf("Error sending message: %+v", senderr))
 		}
 	}
 }
@@ -155,14 +191,10 @@ func (TB *TTalkieBot) handlePrivateMessage(msginfo kotobot.TMessage) {
 			Reply := chatCurrent.PickAnswer(ChatCom, 0)
 			// 3. Send reply
 			_, senderr := TB.Bot.SendMessage(Reply.Content, true, msginfo)
-			if senderr != nil {
-				TB.Logger.LogEventError(fmt.Sprintf("Error sending reply message: %+v", senderr))
-			}
+			TB.CheckSpecificError("Error sending reply message", senderr)
 			// 4. Record message
 			_, recerr := TB.S3DB.QuerySingle(sqlRecordMessage, msginfo.From.ID, openai.ChatRoleAssistant, Reply.Content)
-			if recerr != nil {
-				TB.Logger.LogEventError(fmt.Sprintf("Error recording reply message: %+v", recerr))
-			}
+			TB.CheckSpecificError("Error recording reply message", recerr)
 			// 5. Report reply
 			TB.Logger.LogEventInfo(fmt.Sprintf("[openai]: %s", Reply.Content))
 			return

@@ -7,6 +7,7 @@ const (
 	strStartedAs = "Started as @%s"
 	strHint      = "Try writing meaningful sentences."
 	strCleared   = "History cleared. The AI now does not remember previous conversation."
+	strNoData    = "The model has returned neither an error nor data"
 	// OpenAI
 	PrefModel = "gpt-3.5-turbo"
 	// SQL
@@ -20,10 +21,14 @@ const (
 	sqlRecordMessage   = `INSERT INTO chatlog (tgid, role, message) VALUES ($1,$2,$3)`
 	sqlRetrieveHistory = `SELECT role,message FROM chatlog WHERE tgid=$1 ORDER BY tstamp ASC`
 	sqlClearHistory    = `DELETE FROM chatlog WHERE tgid=$1`
+	// Custom prefixes
+	prefixImageGen = "/imagen"
 )
 
-type TTalkieConfig struct {
-	TGBotToken string `json:"TGBotToken"`
-	OpenAIKey  string `json:"OpenAIKey"`
-	ChatLogDB  string `json:"ChatLogDB"`
-}
+type (
+	TTalkieConfig struct {
+		TGBotToken string `json:"TGBotToken"`
+		OpenAIKey  string `json:"OpenAIKey"`
+		ChatLogDB  string `json:"ChatLogDB"`
+	}
+)
