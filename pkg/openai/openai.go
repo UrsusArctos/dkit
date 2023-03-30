@@ -5,7 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
+	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 
 	"golang.org/x/exp/slices"
@@ -20,10 +26,13 @@ const (
 	valBearer      = "Bearer %s"
 	valMimeType    = "application/json"
 	// Endpoints
-	eptModels          = "models"
-	eptCompletions     = "completions"
-	eptChatCompletions = "chat/completions"
-	eptImageGeneration = "images/generations"
+	eptModels              = "models"
+	eptCompletions         = "completions"
+	eptChatCompletions     = "chat/completions"
+	eptImageGeneration     = "images/generations"
+	eptAudioTranscriptions = "audio/transcriptions"
+	// STT (transcription) models
+	transcriptionModel = "whisper-1"
 	// Project name
 	projectName = "dkit-openai"
 	// Chat
@@ -31,6 +40,13 @@ const (
 )
 
 type (
+	TAttachedFile struct {
+		LocalFileName  string
+		FieldName      string
+		MIMEType       string
+		RemoteFileName string
+	}
+
 	TOpenAPIClient struct {
 		APIToken      string
 		Models        TAIModels
@@ -101,6 +117,70 @@ func (oac TOpenAPIClient) apiCallJSON(endPoint string, request any) ([]byte, err
 	return nil, merr
 }
 
+func (oac TOpenAPIClient) apiCallForm(endPoint string, request map[string]any, fileAttached *TAttachedFile) ([]byte, error) {
+	// Init multipart request body
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	defer writer.Close()
+	// write down the request parameters first
+	for key, value := range request {
+		vt := reflect.TypeOf(value)
+		switch vt.Kind() {
+		case reflect.String:
+			wrerr := writer.WriteField(key, value.(string))
+			if wrerr != nil {
+				return nil, wrerr
+			}
+		case reflect.Int64:
+			wrerr := writer.WriteField(key, fmt.Sprintf("%d", value.(int64)))
+			if wrerr != nil {
+				return nil, wrerr
+			}
+		}
+	}
+	// Attach a file, if any
+	if fileAttached != nil {
+		attfile, aerr := os.Open(fileAttached.LocalFileName)
+		if aerr == nil {
+			defer attfile.Close()
+			attheader := make(textproto.MIMEHeader)
+			attheader.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fileAttached.FieldName, fileAttached.RemoteFileName))
+			attheader.Set("Content-Type", fileAttached.MIMEType)
+			afilepart, afperr := writer.CreatePart(attheader)
+			if afperr == nil {
+				_, copyerr := io.Copy(afilepart, attfile)
+				if copyerr != nil {
+					return nil, copyerr
+				}
+				writer.Close()
+			} else {
+				return nil, afperr
+			}
+		} else {
+			return nil, aerr
+		}
+	}
+	// Make API request
+	apireq, arqerr := http.NewRequest("POST", formatAPIURL(endPoint), body)
+	if arqerr == nil {
+		apireq.Header.Add(keyContentType, "multipart/form-data; boundary="+writer.Boundary())
+		apireq.Header.Add(keyAuth, fmt.Sprintf(valBearer, oac.APIToken))
+		hclient := &http.Client{}
+		response, herr := hclient.Do(apireq)
+		if herr == nil {
+			defer response.Body.Close()
+			rawResponse, rerr := io.ReadAll(response.Body)
+			if rerr == nil {
+				return rawResponse, rerr
+			}
+			return nil, rerr
+		}
+		return nil, herr
+	}
+	return nil, arqerr
+}
+
 func (oac TOpenAPIClient) GetTextCompletion(prompt string, choicesWanted int) (TCompletionChoices, error) {
 	// Assert the model is selected
 	if !oac.isModelSelected() {
@@ -169,7 +249,34 @@ func (oac TOpenAPIClient) GetGeneratedImage(prompt string, choicesWanted int) (T
 		return TGeneratedImage{}, uerr
 	}
 	return TGeneratedImage{}, err
+}
 
+func (oac TOpenAPIClient) GetAudioTranscription(audioFile string) (TTranscriptResponse, error) {
+	// Compose transcription request
+	var transReq map[string]any = make(map[string]any)
+	transReq["model"] = transcriptionModel
+	transReq["response_format"] = "verbose_json"
+	//
+	fa := TAttachedFile{
+		LocalFileName:  audioFile,
+		FieldName:      "file",
+		MIMEType:       mime.TypeByExtension(filepath.Ext(audioFile)),
+		RemoteFileName: filepath.Base(audioFile),
+	}
+	//
+	rawResp, err := oac.apiCallForm(eptAudioTranscriptions, transReq, &fa)
+	if err == nil {
+		respDecoder := json.NewDecoder(bytes.NewReader(rawResp))
+		respDecoder.UseNumber()
+		var TR TTranscriptResponse
+		decerr := respDecoder.Decode(&TR)
+		if decerr == nil {
+			return TR, nil
+		} else {
+			return TTranscriptResponse{}, decerr
+		}
+	}
+	return TTranscriptResponse{}, err
 }
 
 // TChat
