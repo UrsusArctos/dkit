@@ -1,6 +1,7 @@
 .vscode
 .creds
 .assets
+.snippets
 *.mp3
 *.jpg
 *.log.gz

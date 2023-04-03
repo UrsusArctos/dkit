@@ -22,7 +22,8 @@ const (
 	sqlRetrieveHistory = `SELECT role,message FROM chatlog WHERE tgid=$1 ORDER BY tstamp ASC`
 	sqlClearHistory    = `DELETE FROM chatlog WHERE tgid=$1`
 	// Custom prefixes
-	prefixImageGen = "/imagen"
+	prefixImageGen  = "/imagen"
+	prefixAwakening = "/awake"
 )
 
 type (
@@ -30,5 +31,6 @@ type (
 		TGBotToken string `json:"TGBotToken"`
 		OpenAIKey  string `json:"OpenAIKey"`
 		ChatLogDB  string `json:"ChatLogDB"`
+		AdminUID   int64  `json:"AdminUID"`
 	}
 )

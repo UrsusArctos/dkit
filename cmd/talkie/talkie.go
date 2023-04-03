@@ -12,6 +12,7 @@ import (
 	"github.com/UrsusArctos/dkit/pkg/logmeow"
 	"github.com/UrsusArctos/dkit/pkg/openai"
 	"github.com/UrsusArctos/dkit/pkg/sqlite"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type (
@@ -93,7 +94,7 @@ func (TB *TTalkieBot) BotMain() (err error) {
 
 // Ad-hoc blocklist. Needs to be reworked if the abuse problem persists
 func (TB *TTalkieBot) IsBanned(visavis int64) bool {
-	Banned := []int64{1468641954}
+	Banned := []int64{1468641954, 1493156936, 1699986538}
 	var res bool = false
 	for _, tgid := range Banned {
 		res = res || (visavis == tgid)
@@ -109,6 +110,10 @@ func (TB TTalkieBot) CheckSpecificError(prefix string, specerror error) {
 
 func (TB *TTalkieBot) MessageHandler(msginfo kotobot.TMessage) {
 	// Make sure the message is private and has text, ignore all other types
+	if (msginfo.Chat.Type == "private") && (len(msginfo.Text) > 0) && (TB.IsBanned(msginfo.From.ID)) {
+		TB.Logger.LogEventWarning(fmt.Sprintf("Banned TG ID [%d] attempts contact", msginfo.From.ID))
+	}
+	//
 	if (msginfo.Chat.Type == "private") && (len(msginfo.Text) > 0) && (!TB.IsBanned(msginfo.From.ID)) {
 		switch msginfo.Text {
 		case "/start":
@@ -136,13 +141,31 @@ func (TB *TTalkieBot) MessageHandler(msginfo kotobot.TMessage) {
 				TB.CheckSpecificError("Error sending clearing reply", senderr)
 			}
 		default:
-			{ // Check if this is a custom command
-				if strings.HasPrefix(msginfo.Text, prefixImageGen) {
-					// Image generation requested, extract prompt
+			{ // Check if this is a custom admin command
+				if strings.HasPrefix(msginfo.Text, prefixAwakening) && (msginfo.From.ID == TB.Config.AdminUID) {
+					// admin-only command of awakening
+					// extract UID
+					spls := strings.Split(msginfo.Text, " ")
+					fmt.Printf("%+v\n", spls)
+					var ruid int64
+					fmt.Sscanf(spls[1], "%d", &ruid)
+					OMsg := strings.Join(spls[2:], " ")
+					// Log attempt
+					TB.Logger.LogEventInfo(fmt.Sprintf("[%d]-awake to %d: %s", msginfo.From.ID, ruid, OMsg))
+					// Send message
+					rRefMsg := kotobot.TMessage{Chat: &tgbotapi.Chat{ID: ruid}}
+					_, awerr := TB.Bot.SendMessage(OMsg, false, rRefMsg)
+					TB.CheckSpecificError("Awake msg error: ", awerr)
+					break
+				}
+				// imagen
+				if strings.HasPrefix(msginfo.Text, prefixImageGen) && (msginfo.From.ID == TB.Config.AdminUID) {
+					// admin-only command of imagen
+					// extract prompt
 					_, prompt, _ := strings.Cut(msginfo.Text, prefixImageGen)
 					prompt = strings.TrimSpace(prompt)
 					// Log attempt
-					TB.Logger.LogEventInfo(fmt.Sprintf("[%d]-imagen: %s", msginfo.From.ID, prompt))
+					TB.Logger.LogEventInfo(fmt.Sprintf("[%d]-%s: %s", msginfo.From.ID, prefixImageGen, prompt))
 					// Generate
 					gi, gierr := TB.AIClient.GetGeneratedImage(prompt, 1)
 					TB.CheckSpecificError("Error generating image", gierr)
@@ -157,15 +180,17 @@ func (TB *TTalkieBot) MessageHandler(msginfo kotobot.TMessage) {
 							TB.CheckSpecificError("Error sending error message", senderr)
 						}
 					}
-				} else { // Regular chat message
-					// Log message
-					TB.Logger.LogEventInfo(fmt.Sprintf("[%d]: %s", msginfo.From.ID, msginfo.Text))
-					// Record this message in history
-					_, sqlerr := TB.S3DB.QuerySingle(sqlRecordMessage, msginfo.From.ID, openai.ChatRoleUser, msginfo.Text)
-					TB.CheckSpecificError("Database error", sqlerr)
-					// Handle message
-					TB.handlePrivateMessage(msginfo)
+					//
+					break
 				}
+				// default: regular chat message
+				// Log message
+				TB.Logger.LogEventInfo(fmt.Sprintf("[%d]: %s", msginfo.From.ID, msginfo.Text))
+				// Record this message in history
+				_, sqlerr := TB.S3DB.QuerySingle(sqlRecordMessage, msginfo.From.ID, openai.ChatRoleUser, msginfo.Text)
+				TB.CheckSpecificError("Database error", sqlerr)
+				// Handle message
+				TB.handlePrivateMessage(msginfo)
 			}
 		}
 	}
