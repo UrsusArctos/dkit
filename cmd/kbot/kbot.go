@@ -14,7 +14,7 @@ func ActualHandler(msginfo kotobot.TMessage) {
 	// Show received message
 	fmt.Printf("%s [%d] in %d: %s \n", msginfo.From.UserName, msginfo.From.ID, msginfo.Chat.ID, msginfo.Text)
 	// Send quoted reply
-	sentmsg, err := tgb.SendMessage(fmt.Sprintf("Hello, %s!", msginfo.From.UserName), true, msginfo)
+	sentmsg, err := tgb.SendMessage(fmt.Sprintf("Hello, %s!", msginfo.From.UserName), true, msginfo, nil, nil)
 	if err != nil {
 		fmt.Printf("%+v\n%+v\n", sentmsg, err)
 	}

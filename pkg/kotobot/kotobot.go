@@ -23,13 +23,16 @@ const (
 	apiMIMEType = "application/json"
 	apiWaitTime = 30
 	// API Methods
-	apiGetMe          = "getMe"
-	apiGetUpdates     = "getUpdates"
-	apiSendMessage    = "sendMessage"
-	apiForwardMessage = "forwardMessage"
-	apiSendDocument   = "sendDocument"
-	apiSendAudio      = "sendAudio"
-	apiSendPhoto      = "sendPhoto"
+	apiGetMe               = "getMe"
+	apiGetUpdates          = "getUpdates"
+	apiSendMessage         = "sendMessage"
+	apiForwardMessage      = "forwardMessage"
+	apiSendDocument        = "sendDocument"
+	apiSendAudio           = "sendAudio"
+	apiSendPhoto           = "sendPhoto"
+	apiCreateForumTopic    = "createForumTopic"
+	apiDeleteForumTopic    = "deleteForumTopic"
+	apiAnswerCallbackQuery = "answerCallbackQuery"
 	// API Constraints
 	MaxMsgLength = 0x1000
 	// field names
@@ -50,8 +53,19 @@ type (
 	TAPICallResult = tgtypes.APIResponse
 	TUser          = tgtypes.User
 	TChat          = tgtypes.Chat
-	TUpdate        = tgtypes.Update
-	TMessage       = tgtypes.Message
+	// TUpdate               = tgtypes.Update
+	// TMessage              = tgtypes.Message
+	TCallbackQuery        = tgtypes.CallbackQuery
+	TInlineKeyboardMarkup = tgtypes.InlineKeyboardMarkup
+	TInlineKeyboardButton = tgtypes.InlineKeyboardButton
+
+	// Additional structures from TG Bot official API
+	TForumTopic struct {
+		MessageThreadID   int64  `json:"message_thread_id"`
+		Name              string `json:"name"`
+		IconColor         int64  `json:"icon_color"`
+		IconCustomEmojiID string `json:"icon_custom_emoji_id,omitempty"`
+	}
 
 	// Internal structures
 	TAttachment struct {
@@ -70,8 +84,9 @@ type (
 		respoChan    chan TAsyncAPICallResult
 		lastUpdateID int64
 		// handlers
-		ParseMode      string
-		MessageHandler TMessageHandler
+		ParseMode       string
+		MessageHandler  TMessageHandler
+		CallbackHandler TCallbackHandler
 	}
 
 	// API Call parameters
@@ -84,7 +99,8 @@ type (
 	}
 
 	// Update handlers
-	TMessageHandler func(msg TMessage)
+	TMessageHandler  func(msg TMessage)
+	TCallbackHandler func(cbq TCallbackQuery)
 )
 
 // Constructor
@@ -114,6 +130,10 @@ func NewInstance(Token string) (TKotoBot, error) {
 // Helper formatter
 func (kb TKotoBot) formatAPIURL(apimethod string) string {
 	return fmt.Sprintf(apiURL, kb.APIToken, apimethod)
+}
+
+func RefmsgFromUID(uid int64) TMessage {
+	return TMessage{Chat: &TChat{ID: uid}}
 }
 
 // Low level API calls (sync and async modes, JSON and FORM modes)
@@ -244,8 +264,13 @@ func (kb *TKotoBot) Updates_ProcessAll() bool { // True means some updates were 
 
 // Internal update dispatcher (since there are many possible types of update)
 func (kb TKotoBot) dispatchUpdate(update TUpdate) {
+	// Handle regular messages
 	if (update.Message != nil) && (kb.MessageHandler != nil) {
 		kb.MessageHandler(*update.Message)
+	}
+	// Handle callback queries
+	if (update.CallbackQuery != nil) && (kb.CallbackHandler != nil) {
+		kb.CallbackHandler(*update.CallbackQuery)
 	}
 }
 
@@ -267,6 +292,10 @@ func (kb TKotoBot) interpretAPICallResult(rawRes []byte, typeHint interface{}) (
 				var upds []TUpdate
 				resdecoder.Decode(&upds)
 				return upds, nil
+			case reflect.TypeOf(TForumTopic{}):
+				var fmtp TForumTopic
+				resdecoder.Decode(&fmtp)
+				return fmtp, nil
 			default:
 				return nil, fmt.Errorf("unknown type hint; error %d %s", apires.ErrorCode, apires.Description)
 			}
@@ -277,7 +306,7 @@ func (kb TKotoBot) interpretAPICallResult(rawRes []byte, typeHint interface{}) (
 }
 
 // Sending
-func (kb TKotoBot) SendMessage(mText string, mUseReply bool, mRefMsg TMessage) (TMessage, error) {
+func (kb TKotoBot) SendMessage(mText string, mUseReply bool, mRefMsg TMessage, inlineKB *TInlineKeyboardMarkup, threadID *int64) (TMessage, error) {
 	// Compose API request
 	// 1. Common fields
 	params := TCallParams{"text": mText, "parse_mode": kb.ParseMode}
@@ -287,6 +316,14 @@ func (kb TKotoBot) SendMessage(mText string, mUseReply bool, mRefMsg TMessage) (
 	if mUseReply {
 		params["reply_to_message_id"] = mRefMsg.MessageID
 		params["allow_sending_without_reply"] = true
+	}
+	// 4. Optional inline keyboard
+	if inlineKB != nil {
+		params["reply_markup"] = *inlineKB
+	}
+	// 5. Optional thread ID
+	if threadID != nil {
+		params["message_thread_id"] = *threadID
 	}
 	// X. Send JSONRPC API request
 	rawRes, apierr := kb.apiSyncCallJSON(params, apiSendMessage)
@@ -301,10 +338,14 @@ func (kb TKotoBot) SendMessage(mText string, mUseReply bool, mRefMsg TMessage) (
 }
 
 // Forwarding
-func (kb TKotoBot) ForwardMessage(mToWhere int64, mRefMsg TMessage) (TMessage, error) {
+func (kb TKotoBot) ForwardMessage(mToWhere int64, mRefMsg TMessage, threadID *int64) (TMessage, error) {
 	// Compose API request
 	// 1. Common fields
 	params := TCallParams{"from_chat_id": mRefMsg.Chat.ID, "message_id": mRefMsg.MessageID, "chat_id": mToWhere}
+	// 2. Optional thread ID
+	if threadID != nil {
+		params["message_thread_id"] = *threadID
+	}
 	// X. Send JSONRPC API request
 	rawRes, apierr := kb.apiSyncCallJSON(params, apiForwardMessage)
 	if apierr == nil {
@@ -411,4 +452,50 @@ func (kb TKotoBot) SendAudio(mToWhere int64, fileName string, caption string) (T
 		return kb.sendFileCommon(mToWhere, fAtt, audioparams)
 	}
 	return TMessage{}, fierr
+}
+
+func (kb TKotoBot) CreateForumTopic(mWhere int64, topicName string) (TForumTopic, error) {
+	// Compose API request
+	params := TCallParams{"chat_id": mWhere, "name": topicName}
+	// Send JSONRPC API request
+	rawRes, apierr := kb.apiSyncCallJSON(params, apiCreateForumTopic)
+	if apierr == nil {
+		iftop, merr := kb.interpretAPICallResult(rawRes, TForumTopic{})
+		if iftop != nil {
+			return iftop.(TForumTopic), merr
+		}
+		return TForumTopic{}, merr
+	}
+	return TForumTopic{}, apierr
+}
+
+func (kb TKotoBot) DeleteForumTopic(mWhere int64, MessageThreadID int64) (bool, error) {
+	params := TCallParams{"chat_id": mWhere, "message_thread_id": MessageThreadID}
+	rawRes, apierr := kb.apiSyncCallJSON(params, apiDeleteForumTopic)	
+	if apierr == nil {
+		var apires TAPIBoolResponse
+		apierr = json.Unmarshal(rawRes, &apires)
+		if apierr == nil {
+			return apires.Result, apierr
+		}
+	}
+	return false, apierr
+}
+
+type TAPIBoolResponse struct {
+	Ok     bool `json:"ok"`
+	Result bool `json:"result,omitempty"`
+}
+
+func (kb TKotoBot) AnswerCallbackQuery(cbq TCallbackQuery) (bool, error) {
+	params := TCallParams{"callback_query_id": cbq.ID}
+	rawRes, apierr := kb.apiSyncCallJSON(params, apiAnswerCallbackQuery)
+	if apierr == nil {
+		var apires TAPIBoolResponse
+		apierr = json.Unmarshal(rawRes, &apires)
+		if apierr == nil {
+			return apires.Result, apierr
+		}
+	}
+	return false, apierr
 }

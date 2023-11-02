@@ -156,7 +156,8 @@ func (UPSDC TUPSDClientConnection) getStringValue(valuename string) (v string) {
 
 func (UPSDC TUPSDClientConnection) IsPowerMainsGood() bool {
 	voltage := UPSDC.getFloatValue(varVOLTAGE)
-	return (UPSDC.getFloatValue(varTRANSFERLO) < voltage) && (voltage < UPSDC.getFloatValue(varTRANSFERHI))
+	// return (UPSDC.getFloatValue(varTRANSFERLO) < voltage) && (voltage < UPSDC.getFloatValue(varTRANSFERHI))
+	return voltage > 0
 }
 
 func (UPSDC *TUPSDClientConnection) GetStatusOn(st string) bool {
