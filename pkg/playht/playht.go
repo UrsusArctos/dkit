@@ -121,6 +121,7 @@ func (ph TPlayHT) CreateNewTranscription(language string, textFragment string) (
 func (ph TPlayHT) RetrieveArticleInfo(txid string) (TPHArticleStatus, error) {
 	// Perform JSONRPC call
 	rawResp, err := ph.apiCallJSON("GET", fmt.Sprintf("%s?transcriptionId=%s", eptArticleStatus, txid), nil)
+	//defer rawResp.Body.Close()
 	if err == nil {
 		var ArtStat TPHArticleStatus
 		uerr := json.Unmarshal(rawResp, &ArtStat)
@@ -135,6 +136,7 @@ func (ph TPlayHT) RetrieveArticleInfo(txid string) (TPHArticleStatus, error) {
 func (ph TPlayHT) DownloadTranscriptMP3(url string) ([]byte, error) {
 	response, herr := http.Get(url)
 	if herr == nil {
+		defer response.Body.Close()
 		rawResp, rerr := io.ReadAll(response.Body)
 		if rerr == nil {
 			return rawResp, nil

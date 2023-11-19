@@ -1,26 +1,29 @@
 # dkit
 Collection of libraries and helpers I wrote for my pet projects.
 
+## aegisql
+SQL client that talks both SQLite and MySQL.
+
 ## daemonizer
-To help write system daemons for OpenRC/Systemd.
+Helper to write system daemons for OpenRC/Systemd.
+Linux only.
 
 ## kotobot
-Telegram bot API client
+Telegram bot API client.
 
 ## logmeow
-To do logging (to console, to GZipped file, and to syslog)
+Helper to do logging (to console, to GZipped file, and to syslog/journald)
+Linux only.
 
 ## openai
 OpenAI API client (text completion, chat completion, image generation, Whisper STT transcription)
 
 ## picovoice
 Picovoice library bindings for Porcupine hotword detection and Cobra VAD (voice activity detection)
+Windows only.
 
 ## playht
 Play.HT API for multilanguage TTS
-
-## sqlite
-SQLite3 client
 
 ## stringent
 Unorthodox string handling
@@ -29,4 +32,5 @@ Unorthodox string handling
 Client for UPSD protocol
 
 ## winmic
-Windows EAPI waveIn* helper (microphone recording)
+Windows EAPI waveIn* helper (for microphone recording).
+Windows only.

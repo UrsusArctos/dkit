@@ -1,5 +1,0 @@
-{
-    "TGBotToken": "<your TG Bot API token>",
-    "OpenAIKey": "<your OpenAI API key>",
-    "ChatLogDB": "./chatlog.s3db"
-}
