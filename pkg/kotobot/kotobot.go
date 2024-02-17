@@ -361,7 +361,7 @@ func (kb TKotoBot) ForwardMessage(mToWhere int64, mRefMsg TMessage, threadID *in
 // Sending files
 func (kb TKotoBot) sendFileCommon(mToWhere int64, attFile TAttachment, addParams ...TCallParams) (TMessage, error) {
 	// Fill common fields
-	params := TCallParams{"chat_id": mToWhere, "caption": attFile.Caption}
+	params := TCallParams{"chat_id": mToWhere, "caption": attFile.Caption, "parse_mode": kb.ParseMode}
 	// Add document-specific fields
 	if len(addParams) > 0 {
 		for ap := range addParams {
