@@ -156,6 +156,7 @@ func (UPSDC TUPSDClientConnection) getStringValue(valuename string) (v string) {
 
 func (UPSDC TUPSDClientConnection) IsPowerMainsGood() bool {
 	voltage := UPSDC.getFloatValue(varVOLTAGE)
+	// Current setup seems to not support transfer voltages
 	// return (UPSDC.getFloatValue(varTRANSFERLO) < voltage) && (voltage < UPSDC.getFloatValue(varTRANSFERHI))
 	return voltage > 0
 }

@@ -104,9 +104,9 @@ func (ld TLinuxDaemon) Run() error {
 	if ld.FuncMain != nil {
 		for errMain = ld.FuncMain(); (errMain == nil) && (!sigint); errMain = ld.FuncMain() {
 			// check if this cycle failed
-			if errMain != nil {
-				break
-			}
+			// if errMain != nil {
+			// 	break
+			// }
 			// check if SIGINT is received
 			select {
 			case <-kill:

@@ -32,6 +32,7 @@ const (
 	apiSendPhoto           = "sendPhoto"
 	apiCreateForumTopic    = "createForumTopic"
 	apiDeleteForumTopic    = "deleteForumTopic"
+	apiEditForumTopic      = "editForumTopic"
 	apiAnswerCallbackQuery = "answerCallbackQuery"
 	// API Constraints
 	MaxMsgLength = 0x1000
@@ -469,9 +470,22 @@ func (kb TKotoBot) CreateForumTopic(mWhere int64, topicName string) (TForumTopic
 	return TForumTopic{}, apierr
 }
 
+func (kb TKotoBot) EditForumTopic(mWhere int64, MessageThreadID int64, newName string) (bool, error) {
+	params := TCallParams{"chat_id": mWhere, "message_thread_id": MessageThreadID, "name": newName}
+	rawRes, apierr := kb.apiSyncCallJSON(params, apiEditForumTopic)
+	if apierr == nil {
+		var apires TAPIBoolResponse
+		apierr = json.Unmarshal(rawRes, &apires)
+		if apierr == nil {
+			return apires.Result, apierr
+		}
+	}
+	return false, apierr
+}
+
 func (kb TKotoBot) DeleteForumTopic(mWhere int64, MessageThreadID int64) (bool, error) {
 	params := TCallParams{"chat_id": mWhere, "message_thread_id": MessageThreadID}
-	rawRes, apierr := kb.apiSyncCallJSON(params, apiDeleteForumTopic)	
+	rawRes, apierr := kb.apiSyncCallJSON(params, apiDeleteForumTopic)
 	if apierr == nil {
 		var apires TAPIBoolResponse
 		apierr = json.Unmarshal(rawRes, &apires)

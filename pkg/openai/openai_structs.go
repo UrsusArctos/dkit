@@ -16,6 +16,10 @@ type (
 	// Permissions
 	TPermission = oaimport.Permission
 
+	// Embeddings
+	TEmbeddingRequest  = oaimport.EmbeddingRequest
+	TEmbeddingResponse = oaimport.EmbeddingResponse
+
 	// Completions
 	TCompletionRequest  = oaimport.CompletionRequest
 	TCompletionResponse = oaimport.CompletionResponse

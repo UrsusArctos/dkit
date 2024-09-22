@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slices"
 )
 
@@ -28,6 +29,7 @@ const (
 	// Endpoints
 	eptModels              = "models"
 	eptCompletions         = "completions"
+	eptEmbeddings          = "embeddings"
 	eptChatCompletions     = "chat/completions"
 	eptImageGeneration     = "images/generations"
 	eptAudioTranscriptions = "audio/transcriptions"
@@ -200,6 +202,28 @@ func (oac TOpenAPIClient) GetTextCompletion(prompt string, choicesWanted int) (T
 		uerr := json.Unmarshal(rawResp, &CR)
 		if uerr == nil {
 			return CR.Choices, nil
+		}
+		return nil, uerr
+	}
+	return nil, err
+}
+
+func (oac TOpenAPIClient) GetEmbeddings(input string) (emb []float32, err error) {
+	// Here we ignore the model selected in the client and use specific embedding model explicitly
+	embReq := TEmbeddingRequest{
+		Input: input,
+		Model: openai.SmallEmbedding3,
+		User:  projectName,
+	}
+	// Perform JSONRPC call
+	rawResp, err := oac.apiCallJSON(eptEmbeddings, embReq)
+	if err == nil {
+		var CR TEmbeddingResponse
+		uerr := json.Unmarshal(rawResp, &CR)
+		if uerr == nil {
+			if len(CR.Data) > 0 {
+				return CR.Data[0].Embedding, nil
+			}
 		}
 		return nil, uerr
 	}
