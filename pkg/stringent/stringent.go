@@ -1,5 +1,7 @@
 package stringent
 
+import "strings"
+
 func BreakString(s string, partlen int) []string {
 	r := []rune(s)
 	subs := ((len(r) - 1) / partlen) + 1
@@ -12,4 +14,12 @@ func BreakString(s string, partlen int) []string {
 		}
 	}
 	return bres
+}
+
+func BreakPath(s string) []string {
+	return strings.Split(s, "/")
+}
+
+func StrPtr(s string) *string {
+	return &s
 }
