@@ -1,5 +1,6 @@
 package kotoai
 
+/*
 import (
 	"fmt"
 	"net/http"
@@ -91,3 +92,4 @@ func (KAI *TKotOAI) CreateMessageInThread(threadID string, msgText string, fileI
 	err = KAI.commonProcessor(jobid, &msgThdMessage)
 	return msgThdMessage, err
 }
+*/

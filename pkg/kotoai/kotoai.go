@@ -24,27 +24,18 @@ const (
 
 type (
 	TKotOAI struct {
-		// Public fields
-		APIToken string
-		// Private fields
-		dext *dexternal.TDexternal
+		apiToken string
 	}
 )
 
 func NewInstance(token string) *TKotOAI {
-	koai := &TKotOAI{
-		APIToken: token,
-		dext:     dexternal.NewInstance(),
+	return &TKotOAI{
+		apiToken: token,
 	}
-	return koai
 }
 
-func (KAI *TKotOAI) formatURL(uriSUB string) string {
-	return fmt.Sprintf(urlAPI, uriSUB)
-}
-
-func (KAI *TKotOAI) newJob(njMethod string, njURL string, njPayload any, njFile *dexternal.TPayloadFile) (njob *dexternal.TDexJob) {
-	njob = new(dexternal.TDexJob)
+func (KAI *TKotOAI) createJob(njMethod string, njURL string, njPayload any, njFile *dexternal.TPayloadFile) (njob *dexternal.TDexternalJob) {
+	njob = new(dexternal.TDexternalJob)
 	njob.Method = njMethod
 	njob.URL = njURL
 	njob.Headers = KAI.commonHeaders()
@@ -55,24 +46,24 @@ func (KAI *TKotOAI) newJob(njMethod string, njURL string, njPayload any, njFile 
 
 func (KAI *TKotOAI) commonHeaders() dexternal.TDexJobHeaders {
 	return dexternal.TDexJobHeaders{
-		hhAuthorization: fmt.Sprintf("%s %s", hhBearer, KAI.APIToken),
+		hhAuthorization: fmt.Sprintf("%s %s", hhBearer, KAI.apiToken),
 		hhOpenAIBeta:    hhAssistantsV2,
 	}
 }
 
-func (KAI *TKotOAI) commonProcessor(jobid dexternal.TDexJobID, outStruct any) error {
-	if KAI.dext.Job(jobid).APICallError == nil {
-		if KAI.dext.Job(jobid).RequestError == nil {
-			if KAI.dext.Job(jobid).HTTPResponse.StatusCode == http.StatusOK {
-				KAI.dext.Job(jobid).DecodeResponse(&outStruct)
-				return nil
-			} else {
-				return errors.New(KAI.dext.Job(jobid).HTTPResponse.Status)
-			}
+func (KAI *TKotOAI) formatURL(uriSUB string) string {
+	return fmt.Sprintf(urlAPI, uriSUB)
+}
+
+func commonProcessor(djob *dexternal.TDexternalJob, outStruct any) error {
+	if djob.RequestError == nil {
+		if djob.HTTPResponse.StatusCode == http.StatusOK {
+			djob.DecodeResponse(&outStruct)
+			return nil
 		} else {
-			return KAI.dext.Job(jobid).RequestError
+			return errors.New(djob.HTTPResponse.Status)
 		}
 	} else {
-		return KAI.dext.Job(jobid).APICallError
+		return djob.RequestError
 	}
 }

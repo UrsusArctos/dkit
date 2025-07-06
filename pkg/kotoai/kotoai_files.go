@@ -1,5 +1,6 @@
 package kotoai
 
+/*
 import (
 	"fmt"
 	"net/http"
@@ -51,3 +52,4 @@ func (KAI *TKotOAI) FileDelete(fileID string) bool {
 	err := KAI.commonProcessor(jobid, &fdr)
 	return (err == nil) && (fdr.Deleted)
 }
+*/
