@@ -31,6 +31,7 @@ const (
 	waveInStart           = "waveInStart"
 	waveInReset           = "waveInReset"
 	waveInStop            = "waveInStop"
+	WAVE_MAPPER           = -1
 	//
 	sampleWidth = 16
 	//
@@ -98,7 +99,7 @@ func (wmic *TWinMicrophone) SetAudioFormat(nChans uint16, nFreq uint32) {
 	wmic.wfex.Complete()
 }
 
-func (wmic *TWinMicrophone) Open(devnum uint32) error {
+func (wmic *TWinMicrophone) Open(devnum int32) error {
 	ret0, _, _ := wmic.callProc(waveInOpen,
 		uintptr(unsafe.Pointer(&wmic.hWaveIn)),
 		uintptr(devnum),
@@ -108,7 +109,7 @@ func (wmic *TWinMicrophone) Open(devnum uint32) error {
 		uintptr(callBACK_FUNCTION))
 	if ret0 != 0 {
 		wmic.hWaveIn = 0
-		return fmt.Errorf("cannot open, error %x (%d)", ret0, ret0)
+		return fmt.Errorf("cannot open, error 0x%x (%d)", ret0, ret0)
 	}
 	return nil
 }
@@ -162,6 +163,7 @@ func (wmic *TWinMicrophone) AllocateRecordingBuffers(SamplesInBuffer uint32) {
 	wmic.storedBuf = make(TRecordingBuffer, SamplesInBuffer)
 }
 
+// Duration of the recording buffer in seconds
 func (wmic *TWinMicrophone) GetBufferDuration() float64 {
 	return float64(len(wmic.recBuf[0])) / (float64(wmic.wfex.getNChannels()) * float64(wmic.wfex.getNSamplesPerSec()))
 }

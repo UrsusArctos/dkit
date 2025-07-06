@@ -54,7 +54,6 @@ type (
 		RemoteFileName string
 	}
 
-	// Deprecated: should be gradually replaced with KotOAI package
 	TOpenAPIClient struct {
 		APIToken      string
 		Models        TAIModels

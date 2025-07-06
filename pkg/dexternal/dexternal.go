@@ -99,12 +99,6 @@ func (DEX *TDexternal) isJobRegistered(jobid TDexJobID) bool {
 	return exists
 }
 
-func (DEX *TDexternal) ClearJob(jobid TDexJobID) {
-	if DEX.isJobRegistered(jobid) {
-		delete(DEX.job, jobid)
-	}
-}
-
 func (DEX *TDexternal) StartJob(jobid TDexJobID) {
 	if DEX.isJobRegistered(jobid) && (DEX.job[jobid].status == JobStatusReady) {
 		DEX.wgroup.Add(1)
