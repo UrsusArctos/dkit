@@ -53,15 +53,12 @@ func (pv *TPicovoice) ClosePorcupine() error {
 	return pv.pvPorcupine.Delete()
 }
 
-func (pv *TPicovoice) CreateCobra() error {
+func (pv *TPicovoice) CreateCobra() porcupine.PvStatus {
 	akey := []byte(pv.accessKey)
-	r0, _, cerr := pv.callProc(pvCobraInit,
+	r0, _, _ := pv.callProc(pvCobraInit,
 		uintptr(unsafe.Pointer(&akey[0])),
 		uintptr(unsafe.Pointer(&pv.pvCobra)))
-	if r0 == 0 {
-		return nil
-	}
-	return cerr
+	return porcupine.PvStatus(r0)
 }
 
 func (pv *TPicovoice) CloseCobra() error {
@@ -73,33 +70,34 @@ func (pv *TPicovoice) CloseCobra() error {
 }
 
 func (pv TPicovoice) GetSampleRate() uint32 {
-	r0, r1, _ := pv.callProc(pvSampleRate)
-	if r1 == 0 {
-		return uint32(r0)
-	}
-	return 0
+	r0, _, _ := pv.callProc(pvSampleRate)
+	return uint32(r0)
 }
 
 func (pv TPicovoice) GetFrameLength() uint32 {
-	r0, r1, _ := pv.callProc(pvCobraFrameLength)
-	if r1 == 0 {
-		return uint32(r0)
-	}
-	return 0
+	r0, _, _ := pv.callProc(pvCobraFrameLength)
+	return uint32(r0)
 }
 
+// This function processes frame as Porcupine and Cobra
 func (pv TPicovoice) ProcessFrame(frame *TPVRecordingFrame) (int, C.float, error) {
 	kwindex, err := pv.pvPorcupine.Process(*frame)
 	if err == nil {
-		var vprob C.float
-		r0, _, perr := pv.callProc(pvCobraProcess,
-			pv.pvCobra,
-			uintptr(unsafe.Pointer(&((*frame)[0]))),
-			uintptr(unsafe.Pointer(&vprob)))
-		if r0 == 0 {
-			return kwindex, vprob, nil
-		}
-		return kwindex, 0.0, perr
+		vprob, perr := pv.ProcessCobraFrame(frame)
+		return kwindex, vprob, perr
 	}
 	return kwindex, 0.0, err
+}
+
+// This function processes frame as Cobra only
+func (pv TPicovoice) ProcessCobraFrame(frame *TPVRecordingFrame) (C.float, error) {
+	var vprob C.float
+	r0, _, perr := pv.callProc(pvCobraProcess,
+		pv.pvCobra,
+		uintptr(unsafe.Pointer(&((*frame)[0]))),
+		uintptr(unsafe.Pointer(&vprob)))
+	if r0 == 0 {
+		return vprob, nil
+	}
+	return 0.0, perr
 }

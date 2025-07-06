@@ -3,12 +3,17 @@ package kotoai
 import (
 	"fmt"
 	"net/http"
-	"strings"
 
 	oaimport "github.com/sashabaranov/go-openai"
 )
 
-func (KAI *TKotOAI) ListAssistants() (assList oaimport.AssistantsList, err error) {
+type (
+	TAssistantsList   = oaimport.AssistantsList
+	TAssistantRequest = oaimport.AssistantRequest
+	TAssistantObject  = oaimport.Assistant
+)
+
+func (KAI *TKotOAI) ListAssistants() (assList TAssistantsList, err error) {
 	dj := KAI.newJob(http.MethodGet, KAI.formatURL(uriAssistants), nil, nil)
 	// Run job
 	jobid := KAI.dext.RegisterJob(dj)
@@ -21,22 +26,34 @@ func (KAI *TKotOAI) ListAssistants() (assList oaimport.AssistantsList, err error
 	return assList, err
 }
 
-func (KAI *TKotOAI) DeleteAssistant(assID string) bool {
-	dj := KAI.newJob(http.MethodDelete, KAI.formatURL(fmt.Sprintf("%s/%s", uriAssistants, strings.TrimSpace(assID))), nil, nil)
+func (KAI *TKotOAI) CreateAssistant(reqAss TAssistantRequest) (assistant TAssistantObject, err error) {
+	dj := KAI.newJob(http.MethodPost, KAI.formatURL(uriAssistants), reqAss, nil)
 	// Run job
 	jobid := KAI.dext.RegisterJob(dj)
-	defer KAI.dext.ClearJob(jobid)
 	KAI.dext.StartJob(jobid)
 	// Wait for all jobs to be done
 	KAI.dext.WaitSyncForJobs()
 	// Process results
-	var adr oaimport.AssistantDeleteResponse
-	err := KAI.commonProcessor(jobid, &adr)
-	return (err == nil) && (adr.Deleted)
+	err = KAI.commonProcessor(jobid, &assistant)
+	return assistant, err
 }
 
-func (KAI *TKotOAI) CreateAssistant(assReq TAssistantRequest) (ass oaimport.Assistant, err error) {
-	dj := KAI.newJob(http.MethodPost, KAI.formatURL(uriAssistants), assReq, nil)
+func (KAI *TKotOAI) DeleteAssistant(assistantID string) (err error) {
+	dj := KAI.newJob(http.MethodDelete, KAI.formatURL(fmt.Sprintf("%s/%s", uriAssistants, assistantID)), nil, nil)
+	// // Run job
+	jobid := KAI.dext.RegisterJob(dj)
+	KAI.dext.StartJob(jobid)
+	// Wait for all jobs to be done
+	KAI.dext.WaitSyncForJobs()
+	// Process results
+	err = KAI.commonProcessor(jobid, nil)
+	return err
+}
+
+// TODO: Move message and thread handling to a separate file
+
+func (KAI *TKotOAI) ListMessagesInThread(threadID string) (msgList oaimport.MessagesList, err error) {
+	dj := KAI.newJob(http.MethodGet, KAI.formatURL(fmt.Sprintf("%s/%s/%s", uriThreads, threadID, uriMessages)), nil, nil)
 	// Run job
 	jobid := KAI.dext.RegisterJob(dj)
 	defer KAI.dext.ClearJob(jobid)
@@ -44,8 +61,39 @@ func (KAI *TKotOAI) CreateAssistant(assReq TAssistantRequest) (ass oaimport.Assi
 	// Wait for all jobs to be done
 	KAI.dext.WaitSyncForJobs()
 	// Process results
-	err = KAI.commonProcessor(jobid, &ass)
-	return ass, err
+	err = KAI.commonProcessor(jobid, &msgList)
+	return msgList, err
+}
+
+func (KAI *TKotOAI) CreateMessageInThread(threadID string, msgText string, fileID *string) (msgThdMessage oaimport.Message, err error) {
+	assMReq := TThreadMessageRequest{
+		Role: "user",
+		Content: []TContentPart{
+			{
+				Type: "text",
+				Text: msgText,
+			},
+		},
+	}
+	if fileID != nil {
+		assMReq.Content = append(assMReq.Content, TContentPart{
+			Type: "image_file",
+			ImageFile: &TContentImageFile{
+				FileID: *fileID,
+				Detail: "auto",
+			},
+		})
+	}
+	dj := KAI.newJob(http.MethodPost, KAI.formatURL(fmt.Sprintf("%s/%s/%s", uriThreads, threadID, uriMessages)), assMReq, nil)
+	// Run job
+	jobid := KAI.dext.RegisterJob(dj)
+	defer KAI.dext.ClearJob(jobid)
+	KAI.dext.StartJob(jobid)
+	// Wait for all jobs to be done
+	KAI.dext.WaitSyncForJobs()
+	// Process results
+	err = KAI.commonProcessor(jobid, &msgThdMessage)
+	return msgThdMessage, err
 }
 
 /*
