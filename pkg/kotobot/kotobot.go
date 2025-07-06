@@ -77,7 +77,7 @@ type (
 		RemoteFileName string
 	}
 
-	// Bot instance
+	// Deprecated: should be gradually replaced with KotBOT package using dexternal
 	TKotoBot struct {
 		APIToken string
 		BotInfo  TUser
