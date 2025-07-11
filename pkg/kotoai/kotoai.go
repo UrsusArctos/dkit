@@ -15,6 +15,7 @@ const (
 	uriThreads    = "threads"
 	uriMessages   = "messages"
 	uriFiles      = "files"
+	uriRuns       = "runs"
 	// HTTP headers
 	hhAuthorization = "Authorization"
 	hhBearer        = "Bearer"

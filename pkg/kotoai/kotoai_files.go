@@ -1,6 +1,5 @@
 package kotoai
 
-/*
 import (
 	"fmt"
 	"net/http"
@@ -10,46 +9,41 @@ import (
 	oaimport "github.com/sashabaranov/go-openai"
 )
 
-func (KAI *TKotOAI) FileUpload(purpose string, file dexternal.TPayloadFile) (upfile oaimport.File, err error) {
-	mainPayload := map[string]string{
-		"purpose": purpose,
-	}
-	dj := KAI.newJob(http.MethodPost, KAI.formatURL(uriFiles), mainPayload, &file)
-	// Run job
-	jobid := KAI.dext.RegisterJob(dj)
-	defer KAI.dext.ClearJob(jobid)
-	KAI.dext.StartJob(jobid)
-	// Wait for all jobs to be done
-	KAI.dext.WaitSyncForJobs()
-	// Process results
-	KAI.commonProcessor(jobid, &upfile)
-	return upfile, err
-}
+type (
+	TFilesList = oaimport.FilesList
+	TFile      = oaimport.File
+)
 
-func (KAI *TKotOAI) FileList() (fileList oaimport.FilesList, err error) {
-	dj := KAI.newJob(http.MethodGet, KAI.formatURL(uriFiles), nil, nil)
-	// Run job
-	jobid := KAI.dext.RegisterJob(dj)
-	defer KAI.dext.ClearJob(jobid)
-	KAI.dext.StartJob(jobid)
-	// Wait for all jobs to be done
-	KAI.dext.WaitSyncForJobs()
-	// Process results
-	KAI.commonProcessor(jobid, &fileList)
+func (KAI *TKotOAI) FileList() (fileList TFilesList, err error) {
+	djob := KAI.createJob(http.MethodGet, KAI.formatURL(uriFiles), nil, nil)
+	err = djob.Perform()
+	if err == nil {
+		err = commonProcessor(djob, &fileList)
+	}
+	//
 	return fileList, err
 }
 
 func (KAI *TKotOAI) FileDelete(fileID string) bool {
-	dj := KAI.newJob(http.MethodDelete, KAI.formatURL(fmt.Sprintf("%s/%s", uriFiles, strings.TrimSpace(fileID))), nil, nil)
-	// Run job
-	jobid := KAI.dext.RegisterJob(dj)
-	defer KAI.dext.ClearJob(jobid)
-	KAI.dext.StartJob(jobid)
-	// Wait for all jobs to be done
-	KAI.dext.WaitSyncForJobs()
-	// Process results
+	djob := KAI.createJob(http.MethodDelete, KAI.formatURL(fmt.Sprintf("%s/%s", uriFiles, strings.TrimSpace(fileID))), nil, nil)
+	err := djob.Perform()
 	var fdr TFileDeleteResponse
-	err := KAI.commonProcessor(jobid, &fdr)
+	if err == nil {
+		err = commonProcessor(djob, &fdr)
+	}
+	//
 	return (err == nil) && (fdr.Deleted)
 }
-*/
+
+func (KAI *TKotOAI) FileUpload(purpose string, file dexternal.TPayloadFile) (upfile TFile, err error) {
+	mainPayload := map[string]string{
+		"purpose": purpose,
+	}
+	djob := KAI.createJob(http.MethodPost, KAI.formatURL(uriFiles), mainPayload, &file)
+	err = djob.Perform()
+	if err == nil {
+		err = commonProcessor(djob, &upfile)
+	}
+	//
+	return upfile, err
+}

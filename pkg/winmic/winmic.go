@@ -198,25 +198,30 @@ func (wmic *TWinMicrophone) queueRecBuffer(bufIdx uint8) {
 }
 
 func (wmic *TWinMicrophone) StartRecording() error {
-	for bufidx := range wmic.recBuf {
-		wmic.queueRecBuffer(uint8(bufidx))
+	if wmic.IsOpened() {
+		for bufidx := range wmic.recBuf {
+			wmic.queueRecBuffer(uint8(bufidx))
+		}
+		ret0, _, err := wmic.callProc(waveInStart, uintptr(wmic.hWaveIn))
+		wmic.stopFlag = (ret0 != 0)
+		if ret0 == 0 {
+			wmic.recBufIndex = 0
+			wmic.wgroup.Add(1)
+			go wmic.syncLoop()
+			return nil
+		} else {
+			return err
+		}
 	}
-	ret0, _, err := wmic.callProc(waveInStart, uintptr(wmic.hWaveIn))
-	wmic.stopFlag = (ret0 != 0)
-	if ret0 == 0 {
-		wmic.recBufIndex = 0
-		wmic.wgroup.Add(1)
-		go wmic.syncLoop()
-		return nil
-	} else {
-		return err
-	}
+	return fmt.Errorf("device is not opened")
 }
 
 func (wmic *TWinMicrophone) StopRecording() {
-	wmic.stopFlag = true
-	wmic.callProc(waveInStop, uintptr(wmic.hWaveIn))
-	wmic.wgroup.Wait()
+	if wmic.IsOpened() {
+		wmic.stopFlag = true
+		wmic.callProc(waveInStop, uintptr(wmic.hWaveIn))
+		wmic.wgroup.Wait()
+	}
 }
 
 func (wmic *TWinMicrophone) syncLoop() {

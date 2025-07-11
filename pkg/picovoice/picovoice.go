@@ -61,12 +61,19 @@ func (pv *TPicovoice) CreateCobra() porcupine.PvStatus {
 	return porcupine.PvStatus(r0)
 }
 
+func (pv *TPicovoice) IsCobraOpened() bool {
+	return pv.pvCobra != 0
+}
+
 func (pv *TPicovoice) CloseCobra() error {
-	r0, _, cerr := pv.callProc(pvCobraDelete, uintptr(pv.pvCobra))
-	if r0 == 0 {
-		return nil
+	if pv.IsCobraOpened() {
+		r0, _, cerr := pv.callProc(pvCobraDelete, uintptr(pv.pvCobra))
+		if r0 == 0 {
+			return nil
+		}
+		return cerr
 	}
-	return cerr
+	return nil
 }
 
 func (pv TPicovoice) GetSampleRate() uint32 {

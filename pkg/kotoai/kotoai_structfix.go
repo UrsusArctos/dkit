@@ -23,7 +23,9 @@ type (
 		Deleted bool   `json:"deleted,omitempty"`
 	}
 
+/*
 	TResponseFormat struct {
 		Type string `json:"type"`
 	}
+*/
 )

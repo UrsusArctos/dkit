@@ -1,6 +1,5 @@
 package kotoai
 
-/*
 import (
 	"fmt"
 	"net/http"
@@ -9,61 +8,60 @@ import (
 	oaimport "github.com/sashabaranov/go-openai"
 )
 
-func (KAI *TKotOAI) CreateThread() (msgThd oaimport.Thread, err error) {
-	dj := KAI.newJob(http.MethodPost, KAI.formatURL(uriThreads), nil, nil)
-	// Run job
-	jobid := KAI.dext.RegisterJob(dj)
-	defer KAI.dext.ClearJob(jobid)
-	KAI.dext.StartJob(jobid)
-	// Wait for all jobs to be done
-	KAI.dext.WaitSyncForJobs()
-	// Process results
-	err = KAI.commonProcessor(jobid, &msgThd)
+type (
+	TThreadObject          = oaimport.Thread
+	TThreadDeleteResponse  = oaimport.ThreadDeleteResponse
+	TMessagesList          = oaimport.MessagesList
+	TThreadMessage         = oaimport.Message
+	TMessageDeleteResponse = oaimport.MessageDeletionStatus
+)
+
+// THREADS
+
+func (KAI *TKotOAI) CreateThread() (msgThd TThreadObject, err error) {
+	djob := KAI.createJob(http.MethodPost, KAI.formatURL(uriThreads), nil, nil)
+	err = djob.Perform()
+	if err == nil {
+		err = commonProcessor(djob, &msgThd)
+	}
+	//
 	return msgThd, err
 }
 
-func (KAI *TKotOAI) RetrieveThread(threadID string) (msgThd oaimport.Thread, err error) {
-	dj := KAI.newJob(http.MethodGet, KAI.formatURL(fmt.Sprintf("%s/%s", uriThreads, strings.TrimSpace(threadID))), nil, nil)
-	// Run job
-	jobid := KAI.dext.RegisterJob(dj)
-	defer KAI.dext.ClearJob(jobid)
-	KAI.dext.StartJob(jobid)
-	// Wait for all jobs to be done
-	KAI.dext.WaitSyncForJobs()
-	// Process results
-	err = KAI.commonProcessor(jobid, &msgThd)
+func (KAI *TKotOAI) RetrieveThread(threadID string) (msgThd TThreadObject, err error) {
+	djob := KAI.createJob(http.MethodGet, KAI.formatURL(fmt.Sprintf("%s/%s", uriThreads, strings.TrimSpace(threadID))), nil, nil)
+	err = djob.Perform()
+	if err == nil {
+		err = commonProcessor(djob, &msgThd)
+	}
+	//
 	return msgThd, err
 }
 
 func (KAI *TKotOAI) DeleteThread(threadID string) bool {
-	dj := KAI.newJob(http.MethodDelete, KAI.formatURL(fmt.Sprintf("%s/%s", uriThreads, strings.TrimSpace(threadID))), nil, nil)
-	// Run job
-	jobid := KAI.dext.RegisterJob(dj)
-	defer KAI.dext.ClearJob(jobid)
-	KAI.dext.StartJob(jobid)
-	// Wait for all jobs to be done
-	KAI.dext.WaitSyncForJobs()
-	// Process results
-	var tdr oaimport.ThreadDeleteResponse
-	err := KAI.commonProcessor(jobid, &tdr)
+	djob := KAI.createJob(http.MethodDelete, KAI.formatURL(fmt.Sprintf("%s/%s", uriThreads, strings.TrimSpace(threadID))), nil, nil)
+	err := djob.Perform()
+	var tdr TThreadDeleteResponse
+	if err == nil {
+		err = commonProcessor(djob, &tdr)
+	}
 	return (err == nil) && (tdr.Deleted)
 }
 
-func (KAI *TKotOAI) ListMessagesInThread(threadID string) (msgList oaimport.MessagesList, err error) {
-	dj := KAI.newJob(http.MethodGet, KAI.formatURL(fmt.Sprintf("%s/%s/%s", uriThreads, strings.TrimSpace(threadID), uriMessages)), nil, nil)
-	// Run job
-	jobid := KAI.dext.RegisterJob(dj)
-	defer KAI.dext.ClearJob(jobid)
-	KAI.dext.StartJob(jobid)
-	// Wait for all jobs to be done
-	KAI.dext.WaitSyncForJobs()
-	// Process results
-	err = KAI.commonProcessor(jobid, &msgList)
+// MESSAGES
+
+func (KAI *TKotOAI) ListMessagesInThread(threadID string) (msgList TMessagesList, err error) {
+	djob := KAI.createJob(http.MethodGet, KAI.formatURL(fmt.Sprintf("%s/%s/%s", uriThreads, strings.TrimSpace(threadID), uriMessages)), nil, nil)
+	err = djob.Perform()
+	if err == nil {
+		err = commonProcessor(djob, &msgList)
+	}
+	//
 	return msgList, err
 }
 
-func (KAI *TKotOAI) CreateMessageInThread(threadID string, msgText string, fileID *string) (msgThdMessage oaimport.Message, err error) {
-	assMReq := TThreadMessageRequest{
+func (KAI *TKotOAI) CreateMessageInThread(threadID string, msgText string, fileID *string) (msgThdMessage TThreadMessage, err error) {
+	msgThdReq := TThreadMessageRequest{
 		Role: "user",
 		Content: []TContentPart{
 			{
@@ -73,7 +71,7 @@ func (KAI *TKotOAI) CreateMessageInThread(threadID string, msgText string, fileI
 		},
 	}
 	if fileID != nil {
-		assMReq.Content = append(assMReq.Content, TContentPart{
+		msgThdReq.Content = append(msgThdReq.Content, TContentPart{
 			Type: "image_file",
 			ImageFile: &TContentImageFile{
 				FileID: *fileID,
@@ -81,15 +79,21 @@ func (KAI *TKotOAI) CreateMessageInThread(threadID string, msgText string, fileI
 			},
 		})
 	}
-	dj := KAI.newJob(http.MethodPost, KAI.formatURL(fmt.Sprintf("%s/%s/%s", uriThreads, strings.TrimSpace(threadID), uriMessages)), assMReq, nil)
-	// Run job
-	jobid := KAI.dext.RegisterJob(dj)
-	defer KAI.dext.ClearJob(jobid)
-	KAI.dext.StartJob(jobid)
-	// Wait for all jobs to be done
-	KAI.dext.WaitSyncForJobs()
-	// Process results
-	err = KAI.commonProcessor(jobid, &msgThdMessage)
+	djob := KAI.createJob(http.MethodPost, KAI.formatURL(fmt.Sprintf("%s/%s/%s", uriThreads, strings.TrimSpace(threadID), uriMessages)), msgThdReq, nil)
+	err = djob.Perform()
+	if err == nil {
+		err = commonProcessor(djob, &msgThdMessage)
+	}
+	//
 	return msgThdMessage, err
 }
-*/
+
+func (KAI *TKotOAI) DeleteMessage(threadID string, messageID string) bool {
+	djob := KAI.createJob(http.MethodDelete, KAI.formatURL(fmt.Sprintf("%s/%s/%s/%s", uriThreads, strings.TrimSpace(threadID), uriMessages, strings.TrimSpace(messageID))), nil, nil)
+	err := djob.Perform()
+	var mdr TMessageDeleteResponse
+	if err == nil {
+		err = commonProcessor(djob, &mdr)
+	}
+	return (err == nil) && (mdr.Deleted)
+}
