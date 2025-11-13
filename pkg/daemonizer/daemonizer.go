@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 )
 
 const (
@@ -95,23 +96,23 @@ func (ld TLinuxDaemon) Run() error {
 			return errInit
 		}
 	}
-	// set this daemon to receive SIGINT
+	// set this daemon to receive SIGINT and SIGTERM
 	kill := make(chan os.Signal, 1)
-	signal.Notify(kill, os.Interrupt)
+	signal.Notify(kill, syscall.SIGINT, syscall.SIGTERM)
 	// run main loop
-	var sigint bool = false
+	var downRequest bool = false
 	var errMain error
 	if ld.FuncMain != nil {
-		for errMain = ld.FuncMain(); (errMain == nil) && (!sigint); errMain = ld.FuncMain() {
+		for errMain = ld.FuncMain(); (errMain == nil) && (!downRequest); errMain = ld.FuncMain() {
 			// check if this cycle failed
 			// if errMain != nil {
 			// 	break
 			// }
-			// check if SIGINT is received
+			// check if signal is received
 			select {
 			case <-kill:
 				{
-					sigint = true
+					downRequest = true
 					errMain = nil
 				}
 			default:
