@@ -10,12 +10,13 @@ import (
 
 const (
 	// URLs and URIs
-	urlAPI        = "https://api.openai.com/v1/%s"
-	uriAssistants = "assistants"
-	uriThreads    = "threads"
-	uriMessages   = "messages"
-	uriFiles      = "files"
-	uriRuns       = "runs"
+	urlAPI                 = "https://api.openai.com/v1/%s"
+	uriAssistants          = "assistants"
+	uriThreads             = "threads"
+	uriMessages            = "messages"
+	uriFiles               = "files"
+	uriRuns                = "runs"
+	uriAudioTranscriptions = "audio/transcriptions"
 	// HTTP headers
 	hhAuthorization = "Authorization"
 	hhBearer        = "Bearer"
