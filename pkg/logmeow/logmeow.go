@@ -4,6 +4,7 @@ package logmeow
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"log/syslog"
 	"os"
@@ -11,6 +12,8 @@ import (
 )
 
 const (
+	// Log chaptering
+	maxChapters = 0xFFFF
 	// Facility flags
 	FacConsole = 1 << 0
 	FacFile    = 1 << 1
@@ -77,7 +80,16 @@ func NewLogMeow(meowname string, enfac uint8, auxargs ...string) (lm TLogMeow) {
 		if len(auxargs) > 0 {
 			defpath = auxargs[0]
 		}
-		lm.logfile, _ = os.OpenFile(fmt.Sprintf("%s%s.log.gz", defpath, lm.name), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
+		var poName string
+		var logchapter uint16
+		for logchapter = range maxChapters {
+			poName = fmt.Sprintf("%s%s.%04x.log.gz", defpath, lm.name, logchapter)
+			_, err := os.Stat(poName)
+			if errors.Is(err, os.ErrNotExist) {
+				break
+			}
+		}
+		lm.logfile, _ = os.OpenFile(poName, os.O_WRONLY|os.O_CREATE, 0640)
 		lm.gzwr = gzip.NewWriter(lm.logfile)
 		lm.enabledFacilities |= FacFile
 	}
