@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 const (
@@ -50,9 +51,10 @@ type (
 		Foreground bool
 		LogPath    string
 		ConfFile   string
-		FuncInit   TDaemonCycle
-		FuncClose  TDaemonCycle
-		FuncMain   TDaemonCycle
+		// handlers
+		FuncInit  TDaemonCycle
+		FuncClose TDaemonCycle
+		FuncMain  TDaemonCycle
 	}
 
 	TDaemonCycle func() (err error)
@@ -88,55 +90,47 @@ func (ld TLinuxDaemon) writePidFile() {
 	}
 }
 
-func (ld TLinuxDaemon) Run() error {
-	// run initialization, if any
-	if ld.FuncInit != nil {
-		errInit := ld.FuncInit()
-		if errInit != nil {
-			return errInit
-		}
-	}
-	// set this daemon to receive SIGINT and SIGTERM
+func (ld TLinuxDaemon) Run(interval time.Duration) error {
+	// 1. Prepare the event loop
+
+	// 1.2. prepare the signal handling
 	kill := make(chan os.Signal, 1)
 	signal.Notify(kill, syscall.SIGINT, syscall.SIGTERM)
-	// run main loop
-	var downRequest bool = false
-	var errMain error
+	defer signal.Stop(kill)
+
+	// 1.3. prepare the ticker
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	// 2. Three main phases; Skip each entirely if not defined.
+
+	// 2.1. Initialization handler
+	if ld.FuncInit != nil {
+		if err := ld.FuncInit(); err != nil {
+			return err
+		}
+	}
+
+	// 2.2. Event loop
+	var errMain error = nil
 	if ld.FuncMain != nil {
-		for errMain = ld.FuncMain(); (errMain == nil) && (!downRequest); errMain = ld.FuncMain() {
-			// check if this cycle failed
-			// if errMain != nil {
-			// 	break
-			// }
-			// check if signal is received
+	EventLoop:
+		for errMain == nil {
 			select {
+			case <-ticker.C:
+				errMain = ld.FuncMain()
 			case <-kill:
-				{
-					downRequest = true
-					errMain = nil
-				}
-			default:
+				break EventLoop
 			}
 		}
-	} else {
-		// no main function specified, that's an error
-		errMain = fmt.Errorf("FuncMain() is not set")
 	}
 
-	// stop receiving signals
-	signal.Stop(kill)
-
-	// run finalization, if any
+	// 2.3. Finalization handler
 	if ld.FuncClose != nil {
-		errClose := ld.FuncClose()
-		if errClose != nil {
-			return errClose
+		if err := ld.FuncClose(); err != nil {
+			return err
 		}
 	}
-	// all done, exit
-	return errMain
-}
 
-func (ld TLinuxDaemon) TestFunc() {
-	fmt.Printf("%+v\n", ld)
+	return errMain
 }
